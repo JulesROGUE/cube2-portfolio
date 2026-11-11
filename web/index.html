@@ -8,27 +8,8 @@
   <link rel="stylesheet" href="portfolio.css">
 </head>
 <body>
-  <div id="stage">
-    <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
-
-    <div id="overlay">
-      <div class="card">
-        <h1>Visite du portfolio</h1>
-        <p class="sub">Cube 2: Sauerbraten, compilé en WebAssembly</p>
-        <div class="bar"><div id="progress"></div></div>
-        <p id="status">Chargement…</p>
-        <p class="hint">ZQSD / WASD pour se déplacer · souris pour regarder · T pour discuter · Échap pour le menu</p>
-      </div>
-    </div>
-
-    <div id="clickhint" hidden>Clique pour jouer</div>
-
-    <div id="toolbar">
-      <span id="net" class="badge off" title="État du multijoueur">hors ligne</span>
-      <button id="fullscreen" type="button" title="Plein écran">⛶</button>
-    </div>
-  </div>
-
+  <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
+  <div id="loading">Chargement… <span id="status"></span></div>
   <script src="portfolio.js"></script>
   <script src="cube2-data.js"></script>
   <script src="cube2.js" async></script>

@@ -4,3 +4,4 @@ dist
 engine/build
 **/node_modules
 *.log
+third_party

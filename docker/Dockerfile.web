@@ -2,9 +2,15 @@
 ARG EMSDK_VERSION=6.0.6
 
 FROM emscripten/emsdk:${EMSDK_VERSION} AS wasm
-RUN apt-get update && apt-get install -y --no-install-recommends python3-pil python3-numpy fonts-dejavu-core \
+RUN apt-get update && apt-get install -y --no-install-recommends python3-pil python3-numpy fonts-dejavu-core curl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
+# 0) assets d'origine de Sauerbraten 2020 (archive officielle, somme SHA-256 épinglée)
+#    et musiques CC0 : téléchargés une fois, couche mise en cache
+COPY scripts/fetch-assets.sh ./scripts/
+RUN FETCH_ONLY=1 ./scripts/fetch-assets.sh
+COPY tools/prepare_sauer.py tools/sauer_assets.txt ./tools/
+RUN ./scripts/fetch-assets.sh
 # 1) le moteur seul (couche mise en cache tant que engine/ ne change pas)
 COPY engine/ ./engine/
 RUN make -C engine web -j"$(nproc)" WEB_OUT=/src/dist/cube2

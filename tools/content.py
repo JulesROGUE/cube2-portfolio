@@ -8,40 +8,50 @@ panneaux (textures) et gen_map.py les zones/textes HUD (cubescript).
 """
 
 # --- Histoire --------------------------------------------------------------
-# Affichée uniquement via la console d'origine du jeu (messages courts).
+# Affichée uniquement via la console d'origine du jeu (messages courts) ; l'intro est
+# racontée par le portfolio avant d'afficher le jeu.
 STORY = {
-    "intro": ("Le serveur du portfolio de Jules a planté : 10 fragments se sont éparpillés dans les "
-              "salles, et des bugs rôdent ! Ramasse des armes, explore et restaure les fragments."),
-    "end": ("Les 10 fragments sont restaurés : le portfolio de Jules est réparé. Merci de ta visite ! "
-            "Écris-lui depuis la salle Contact ou sur julesrogue.fr."),
+    "end": ("Le boss est vaincu : le portfolio de Jules est réparé. Merci de ta visite ! "
+            "Écris-lui depuis le bureau de poste ou sur julesrogue.fr."),
 }
 
+# --- Fragments : la boucle de progression -------------------------------------
+# exploration (6) -> parkour (2) -> combat (2) -> boss final
+FRAGMENTS = [
+    ("profil", "Profil"), ("competences", "Compétences BTS SIO SLAM"), ("projets", "Projets"),
+    ("certificats", "Certificats"), ("tux", "Tux World"), ("contact", "Contact"),
+    ("pk1", "Parcours des piliers"), ("pk2", "Parcours des toits"),
+    ("arene_banquise", "Combat de la banquise"), ("arene_colisee", "Combat du Colisée"),
+]
+
 # --- Zones -----------------------------------------------------------------
-# id -> (titre, message court affiché à l'entrée, compte dans l'histoire ?)
-# Le détail de chaque sujet est écrit sur les panneaux muraux de la salle.
+# id -> (titre, message court affiché à l'entrée, effet « type:valeur »)
+#   frag:<fragment> donne le fragment ; group:<fragment> le donne quand tout le groupe est vu.
+# Le détail de chaque sujet est écrit sur les panneaux muraux.
 ZONES = {
-    "accueil": ("Hall d'accueil", "", False),
-    "galerie": ("Galerie des projets", "", False),
+    "accueil": ("Place d'accueil", "", ""),
+    "galerie": ("Galerie des projets", "", ""),
+    "colisee": ("Le Colisée - arène de combat", "", ""),
     "profil": ("Profil - la bibliothèque de Jules",
-               "étudiant BTS SIO SLAM en alternance chez Action Logement Services", True),
+               "étudiant BTS SIO SLAM en alternance chez Action Logement Services", "frag:profil"),
     "competences": ("Compétences - la salle serveur",
-                    "les 3 blocs du BTS SIO SLAM : support, développement, cybersécurité", True),
+                    "les 3 blocs du BTS SIO SLAM : support, développement, cybersécurité", "frag:competences"),
     "leboncoin": ("Projet Leboncoin - le garage",
-                  "petites annonces auto en PHP 8 / MySQL / MVC, avec Roman Corobca", True),
+                  "petites annonces auto en PHP 8 / MySQL / MVC, avec Roman Corobca", "group:projets"),
     "magic": ("Projet Magic Shape Generator - la salle rythmique",
-              "des magic shapes pour A Dance of Fire and Ice, sur magic.julesrogue.fr", True),
+              "des magic shapes pour A Dance of Fire and Ice, sur magic.julesrogue.fr", "group:projets"),
     "mineport": ("Projet Mineport - le monde en voxels",
-                 "Minecraft Java porté en C# / MonoGame, OpenGL et Vulkan, multijoueur", True),
+                 "Minecraft Java porté en C# / MonoGame, OpenGL et Vulkan, multijoueur", "group:projets"),
     "cube2": ("Projet Cube 2 Portfolio - l'arène",
-              "ce jeu : Cube 2 compilé en WebAssembly, multijoueur via WebSocket", True),
+              "ce jeu : Cube 2 compilé en WebAssembly, multijoueur via WebSocket", "group:projets"),
     "portfolioos": ("Projet Portfolio OS - le bureau géant",
-                    "julesrogue.fr : un bureau dans le navigateur (Aurelia, Express, MariaDB)", True),
+                    "julesrogue.fr : un bureau dans le navigateur (Aurelia, Express, MariaDB)", "group:projets"),
     "certificats": ("Certificats - la salle des trophées",
-                    "Cisco - Introduction to Cybersecurity", True),
+                    "Cisco - Introduction to Cybersecurity", "frag:certificats"),
     "tux": ("Tux World - la banquise",
-            "la veille de Jules sur Tux, la mascotte de Linux", True),
+            "la veille de Jules sur Tux, la mascotte de Linux", "frag:tux"),
     "contact": ("Contact - le bureau de poste",
-                "jules.rogue@ploud.fr - julesrogue.fr", True),
+                "jules.rogue@ploud.fr - julesrogue.fr", "frag:contact"),
 }
 
 # --- Panneaux muraux (textures générées) -----------------------------------

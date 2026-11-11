@@ -8,109 +8,40 @@ panneaux (textures) et gen_map.py les zones/textes HUD (cubescript).
 """
 
 # --- Histoire --------------------------------------------------------------
+# Affichée uniquement via la console d'origine du jeu (messages courts).
 STORY = {
-    "objective": "Restaure les fragments du portfolio",
-    "intro_title": "Bienvenue dans le portfolio de Jules ROGUE",
-    "intro_text": (
-        "Le serveur du portfolio a planté : son contenu s'est éparpillé en 10 fragments, "
-        "un par salle. Explore le Hall et les salles autour pour tous les restaurer. "
-        "Chaque salle découverte rétablit un morceau du parcours de Jules (profil, compétences, "
-        "projets, certificats...). Le compteur en haut à droite suit ta progression. "
-        "Clique pour capturer la souris, ZQSD/WASD pour te déplacer, Échap pour le menu."
-    ),
-    "end_title": "Portfolio restauré à 100 % - merci de ta visite !",
-    "end_text": (
-        "Tu as retrouvé les 10 fragments : le parcours de Jules est de nouveau complet. "
-        "Reviens au Hall pour discuter avec les autres visiteurs (touche T), "
-        "ou passe par la salle Contact pour lui écrire. À bientôt sur julesrogue.fr !"
-    ),
+    "intro": ("Le serveur du portfolio de Jules a planté : 10 fragments se sont éparpillés dans les "
+              "salles, et des bugs rôdent ! Ramasse des armes, explore et restaure les fragments."),
+    "end": ("Les 10 fragments sont restaurés : le portfolio de Jules est réparé. Merci de ta visite ! "
+            "Écris-lui depuis la salle Contact ou sur julesrogue.fr."),
 }
 
 # --- Zones -----------------------------------------------------------------
-# id -> (titre HUD, texte HUD, compte dans l'histoire ?)
+# id -> (titre, message court affiché à l'entrée, compte dans l'histoire ?)
+# Le détail de chaque sujet est écrit sur les panneaux muraux de la salle.
 ZONES = {
-    "accueil": (
-        "Hall d'accueil",
-        "Le carrefour de la visite. Au nord : Profil et Compétences. Au sud : Certificats "
-        "et Tux World. À l'est : la Galerie des projets. À l'ouest : la salle Contact.",
-        False,
-    ),
-    "profil": (
-        "Fragment 1 - Profil de Jules ROGUE",
-        "Étudiant en BTS SIO option SLAM en alternance (CFA IEF2I, Vincennes, 2025-2027) et "
-        "développeur web en alternance chez Action Logement Services. Avant : bac pro Systèmes "
-        "numériques au lycée Clément Ader (Tournan-en-Brie), brevet au collège des Remparts "
-        "(Rozay-en-Brie). Expériences : support IT et brassage réseau au CHI de Créteil, "
-        "JavaScript, suite ELK et API Azure, support GLPI. Passionné, rigoureux, investi - "
-        "et joueur de badminton.",
-        True,
-    ),
-    "competences": (
-        "Fragment 2 - Compétences BTS SIO SLAM",
-        "Bloc 1 (U4) : support et mise à disposition de services informatiques. "
-        "Bloc 2 (U5, spécifique SLAM) : conception et développement d'applications - concevoir, "
-        "maintenir une solution applicative, gérer les données. Bloc 3 (U6) : cybersécurité des "
-        "services informatiques. Langages : JavaScript, Java, Express JS, HTML/CSS. "
-        "IA & outils : Claude Code, OpenClaw, agents IA, automatisation.",
-        True,
-    ),
-    "leboncoin": (
-        "Fragment 3 - Projet Leboncoin (véhicules)",
-        "Clone de Leboncoin dédié aux véhicules : dépôt d'annonces (catalogue de 1802 modèles), "
-        "recherche multicritère, favoris, messagerie entre membres et espace d'administration "
-        "(modération des annonces, gestion des comptes). Mots de passe hachés en bcrypt. "
-        "PHP 8, MySQL, Bootstrap 5, architecture MVC - projet de groupe avec Roman Corobca.",
-        True,
-    ),
-    "magic": (
-        "Fragment 4 - Magic Shape Generator",
-        "Outil web pour créer des magic shapes pour A Dance of Fire and Ice : à partir d'un texte, "
-        "d'un SVG, d'une image ou de formes générées (cercle, flocon de Koch, courbe du dragon...), "
-        "il trace une piste jouable en rythme et exporte la map .adofai. HTML, JavaScript, "
-        "Canvas 2D, 100 % côté client - en ligne sur magic.julesrogue.fr.",
-        True,
-    ),
-    "mineport": (
-        "Fragment 5 - Mineport",
-        "Un portage de Minecraft Java Edition en C# avec MonoGame : rendu OpenGL et Vulkan, "
-        "mode multijoueur, et un launcher séparé, MineportLauncher, pour installer et lancer le jeu.",
-        True,
-    ),
-    "cube2": (
-        "Fragment 6 - Cube 2 Portfolio (ce jeu !)",
-        "Tu es dedans : le moteur de Cube 2: Sauerbraten (C++, licence zlib) allégé et compilé en "
-        "WebAssembly avec Emscripten. Carte générée par un script Python, textes de visite en "
-        "cubescript, multijoueur grâce à un pont WebSocket <-> UDP vers un serveur dédié, le tout "
-        "lancé avec docker compose.",
-        True,
-    ),
-    "portfolioos": (
-        "Fragment 7 - Portfolio OS",
-        "Le portfolio julesrogue.fr imite un système d'exploitation : bureau, fenêtres et "
-        "applications (CV, Compétences, Certificats, Tux World, RPG, chat...). Front Aurelia, "
-        "API Node.js/Express et base MariaDB, déployés en conteneurs Docker sur un VPS.",
-        True,
-    ),
-    "certificats": (
-        "Fragment 8 - Certificats",
-        "Cisco - Introduction to Cybersecurity : menaces et vulnérabilités, protection des données, "
-        "sécurité des réseaux et bonnes pratiques. Badge vérifiable sur Credly.",
-        True,
-    ),
-    "tux": (
-        "Fragment 9 - Tux World",
-        "La veille de Jules sur Tux, la mascotte du noyau Linux : un manchot dessiné en 1996 par "
-        "Larry Ewing avec GIMP. Son nom viendrait de (T)orvalds (U)ni(X). Au démarrage, le noyau "
-        "affiche un Tux par coeur de processeur ! On le retrouve dans SuperTux, SuperTuxKart, "
-        "Tux Paint... avec toute la bande des mascottes du libre.",
-        True,
-    ),
-    "contact": (
-        "Fragment 10 - Contact",
-        "Envie d'échanger avec Jules ? Écris-lui à jules.rogue@ploud.fr, ou passe par "
-        "l'application Contact du portfolio julesrogue.fr. Il est basé à Rozay-en-Brie (77).",
-        True,
-    ),
+    "accueil": ("Hall d'accueil", "", False),
+    "galerie": ("Galerie des projets", "", False),
+    "profil": ("Profil - la bibliothèque de Jules",
+               "étudiant BTS SIO SLAM en alternance chez Action Logement Services", True),
+    "competences": ("Compétences - la salle serveur",
+                    "les 3 blocs du BTS SIO SLAM : support, développement, cybersécurité", True),
+    "leboncoin": ("Projet Leboncoin - le garage",
+                  "petites annonces auto en PHP 8 / MySQL / MVC, avec Roman Corobca", True),
+    "magic": ("Projet Magic Shape Generator - la salle rythmique",
+              "des magic shapes pour A Dance of Fire and Ice, sur magic.julesrogue.fr", True),
+    "mineport": ("Projet Mineport - le monde en voxels",
+                 "Minecraft Java porté en C# / MonoGame, OpenGL et Vulkan, multijoueur", True),
+    "cube2": ("Projet Cube 2 Portfolio - l'arène",
+              "ce jeu : Cube 2 compilé en WebAssembly, multijoueur via WebSocket", True),
+    "portfolioos": ("Projet Portfolio OS - le bureau géant",
+                    "julesrogue.fr : un bureau dans le navigateur (Aurelia, Express, MariaDB)", True),
+    "certificats": ("Certificats - la salle des trophées",
+                    "Cisco - Introduction to Cybersecurity", True),
+    "tux": ("Tux World - la banquise",
+            "la veille de Jules sur Tux, la mascotte de Linux", True),
+    "contact": ("Contact - le bureau de poste",
+                "jules.rogue@ploud.fr - julesrogue.fr", True),
 }
 
 # --- Panneaux muraux (textures générées) -----------------------------------

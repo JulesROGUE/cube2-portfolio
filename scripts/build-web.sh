@@ -13,6 +13,7 @@ FSROOT="$ROOT/build/fsroot"
 echo "==> Génération des assets et de la carte"
 rm -rf build/gamedata "$FSROOT"
 python3 tools/gen_assets.py build/gamedata
+python3 tools/gen_sounds.py build/gamedata
 python3 tools/gen_map.py build/gamedata
 
 echo "==> Assemblage du système de fichiers du jeu"

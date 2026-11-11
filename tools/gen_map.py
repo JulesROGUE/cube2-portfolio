@@ -40,10 +40,13 @@ def addtex(name, line):
 
 
 addtex("sky", 'texture 0 "pf/sky.jpg"')
-addtex("default", 'texture 0 "pf/wall_grey.jpg" 0 0 0 2')
-for t in ["floor_hall", "floor_wood", "floor_tile", "floor_ice", "floor_dark",
-          "wall_grey", "wall_blue", "wall_green", "wall_orange", "wall_purple",
-          "wall_ice", "wall_gold", "wall_teal", "wall_red", "ceiling"]:
+addtex("default", 'texture 0 "pf/wall_hall.jpg" 0 0 0 2')
+# Textures thématiques (générées par gen_assets.py, une famille par salle)
+for t in ["ceiling", "ceiling_wood", "floor_hall", "wall_hall", "floor_wood", "wall_books",
+          "floor_grate", "wall_server", "floor_concrete", "wall_gallery", "floor_garage", "wall_garage",
+          "floor_neon", "wall_neon", "floor_grass", "wall_dirt", "wall_stone", "floor_arena", "wall_arena",
+          "floor_carpet", "wall_ubuntu", "floor_redcarpet", "wall_gold", "floor_snow", "wall_ice",
+          "floor_post", "wall_post"]:
     addtex(t, 'texture 0 "pf/%s.jpg" 0 0 0 2' % t)
 
 # ---------------------------------------------------------------------------
@@ -60,17 +63,18 @@ class Room:
 
 ROOMS = []
 # Hall d'accueil
-ROOMS.append(Room("accueil", (22, 42, 26, 34, FLOOR, FLOOR + 5), "floor_hall", "wall_grey", zone="accueil"))
-# Nord
-ROOMS.append(Room("profil", (22, 30, 35, 43, FLOOR, FLOOR + 4), "floor_wood", "wall_blue", zone="profil"))
-ROOMS.append(Room("competences", (31, 42, 35, 43, FLOOR, FLOOR + 4), "floor_tile", "wall_green", zone="competences"))
-# Sud
-ROOMS.append(Room("certificats", (22, 30, 17, 25, FLOOR, FLOOR + 4), "floor_wood", "wall_gold", zone="certificats"))
-ROOMS.append(Room("tux", (31, 42, 17, 25, FLOOR, FLOOR + 4), "floor_ice", "wall_ice", zone="tux"))
-# Est
-ROOMS.append(Room("contact", (43, 51, 26, 34, FLOOR, FLOOR + 4), "floor_dark", "wall_teal", zone="contact"))
-# Ouest : galerie des projets (allée + 5 stands séparés par des cloisons)
-ROOMS.append(Room("galerie", (8, 21, 14, 43, FLOOR, FLOOR + 4), "floor_tile", "wall_orange", zone=None))
+# Hall d'accueil (marbre)
+ROOMS.append(Room("accueil", (22, 42, 26, 34, FLOOR, FLOOR + 5), "floor_hall", "wall_hall", zone="accueil"))
+# Profil = bibliothèque/bureau, Compétences = salle serveur
+ROOMS.append(Room("profil", (22, 30, 35, 43, FLOOR, FLOOR + 4), "floor_wood", "wall_books", "ceiling_wood", zone="profil"))
+ROOMS.append(Room("competences", (31, 42, 35, 43, FLOOR, FLOOR + 4), "floor_grate", "wall_server", zone="competences"))
+# Certificats = salle des trophées, Tux World = banquise
+ROOMS.append(Room("certificats", (22, 30, 17, 25, FLOOR, FLOOR + 4), "floor_redcarpet", "wall_gold", zone="certificats"))
+ROOMS.append(Room("tux", (31, 42, 17, 25, FLOOR, FLOOR + 4), "floor_snow", "wall_ice", zone="tux"))
+# Contact = bureau de poste
+ROOMS.append(Room("contact", (43, 51, 26, 34, FLOOR, FLOOR + 4), "floor_post", "wall_post", zone="contact"))
+# Galerie des projets (allée + 5 stands séparés par des cloisons)
+ROOMS.append(Room("galerie", (8, 21, 14, 43, FLOOR, FLOOR + 4), "floor_concrete", "wall_gallery", zone=None))
 
 # Portes : boîtes creusées dans les murs (largeur 2 voxels, hauteur 2 voxels)
 DOORS = [
@@ -86,16 +90,17 @@ DOORS = [
 DIVIDERS = [(8, 15, y, y + 1, FLOOR, FLOOR + 4) for y in (19, 25, 31, 37)]
 
 # Stands (zones) de la galerie, du sud au nord
-STANDS = [("leboncoin", 14, 19, "wall_orange"), ("magic", 20, 25, "wall_purple"),
-          ("mineport", 26, 31, "wall_green"), ("cube2", 32, 37, "wall_gold"),
-          ("portfolioos", 38, 43, "wall_teal")]
+STANDS = [("leboncoin", 14, 19, "floor_garage", "wall_garage"),      # garage auto
+          ("magic", 20, 25, "floor_neon", "wall_neon"),              # salle rythmique néon
+          ("mineport", 26, 31, "floor_grass", "wall_dirt"),          # blocs / voxels
+          ("cube2", 32, 37, "floor_arena", "wall_arena"),            # arène
+          ("portfolioos", 38, 43, "floor_carpet", "wall_ubuntu")]    # bureau Ubuntu géant
 
 # Socles décoratifs (blocs pleins posés au sol) : (x0,x1,y0,y1,z0,z1,texture)
 PILLARS = [
-    (31, 33, 29, 31, FLOOR, FLOOR + 1, "wall_gold"),   # socle central du hall
-    (36, 37, 21, 22, FLOOR, FLOOR + 1, "wall_ice"),    # banquise Tux
-    (34, 35, 19, 20, FLOOR, FLOOR + 1, "wall_ice"),
-    (39, 40, 22, 23, FLOOR, FLOOR + 1, "wall_ice"),
+    (38, 40, 18, 20, FLOOR, FLOOR + 1, "wall_ice"),    # banquise Tux
+    (13, 15, 27, 28, FLOOR, FLOOR + 1, "wall_stone"),  # Mineport : blocs de pierre
+    (8, 9, 26, 28, FLOOR, FLOOR + 2, "wall_dirt"),
 ]
 
 # Panneaux : (texture, axe 'x' ou 'y', coordonnée du voxel mur, face, u0 en voxels, z0 en voxels)
@@ -172,14 +177,14 @@ for r in ROOMS:
 for d in DOORS:
     carve(d[:6], ROOMBYID[d[6]])
 for d in DIVIDERS:
-    fill(d, "wall_orange")
+    fill(d, "wall_gallery")
 for p in PILLARS:
     fill(p[:6], p[6])
 
 # Les stands ont leur propre teinte de mur : salles virtuelles pour le texturage
 STANDROOMS = {}
-for sid, y0, y1, wall in STANDS:
-    sr = Room(sid, (8, 15, y0, y1, FLOOR, FLOOR + 4), "floor_tile", wall, zone=sid)
+for sid, y0, y1, floor, wall in STANDS:
+    sr = Room(sid, (8, 15, y0, y1, FLOOR, FLOOR + 4), floor, wall, zone=sid)
     STANDROOMS[sid] = sr
     for z in range(FLOOR, FLOOR + 4):
         for y in range(y0, y1):
@@ -297,10 +302,48 @@ def _uniform_fast(x, y, z, size):
 uniform = _uniform_fast  # noqa: F811
 
 # ---------------------------------------------------------------------------
-# Entités : départs de joueurs + lumières
+# Entités : départs, monstres, lumières colorées, décors, objets, ambiances
 # ---------------------------------------------------------------------------
 ENTS = []  # (x, y, z, a1..a5, type)
-ET_LIGHT, ET_PLAYERSTART = 1, 3
+ET_LIGHT, ET_MAPMODEL, ET_PLAYERSTART, ET_PARTICLES, ET_SOUND = 1, 2, 3, 5, 6
+I_SHELLS, I_BULLETS, I_ROCKETS, I_ROUNDS, I_GRENADES, I_CARTRIDGES = 8, 9, 10, 11, 12, 13
+I_HEALTH, I_BOOST, I_GREENARMOUR, I_YELLOWARMOUR, I_QUAD = 14, 15, 16, 17, 18
+GROUND = FLOOR * VOX           # altitude du sol (512)
+MONSTER_TAG = 9                # attr2 des départs réservés aux monstres (cf. fps.cpp)
+
+# Orientation des décors (attr1) : 0 = face vers +x, 90 = +y, 180 = -x, 270 = -y
+MAPMODELS = []                 # ordre = indices `mmodel` du .cfg
+MAPSOUNDS = []                 # ordre = indices `mapsound` du .cfg
+
+
+def mm(name):
+    if name not in MAPMODELS:
+        MAPMODELS.append(name)
+    return MAPMODELS.index(name)
+
+
+def prop(name, x, y, yaw=0, z=0):
+    # Les modèles générés regardent vers +x ; pour un décor, Cube 2 oriente le modèle
+    # à l'opposé de l'angle de l'entité, d'où le demi-tour (vérifié en jeu).
+    ENTS.append((x, y, GROUND + z, (yaw + 180) % 360, mm("pf/" + name), 0, 0, 0, ET_MAPMODEL))
+
+
+def item(kind, x, y):
+    ENTS.append((x, y, GROUND + 4, 0, 0, 0, 0, 0, kind))
+
+
+def light(x, y, rgb, radius=260, z=110):
+    ENTS.append((x, y, GROUND + z, radius, rgb[0], rgb[1], rgb[2], 0, ET_LIGHT))
+
+
+def ambience(name, x, y, radius, inner):
+    if name not in MAPSOUNDS:
+        MAPSOUNDS.append(name)
+    ENTS.append((x, y, GROUND + 40, MAPSOUNDS.index(name), radius, inner, 0, 0, ET_SOUND))
+
+
+def monster_spawn(x, y, yaw=0):
+    ENTS.append((x, y, GROUND + 4, yaw, MONSTER_TAG, 0, 0, 0, ET_PLAYERSTART))
 
 
 def center(box):
@@ -309,12 +352,171 @@ def center(box):
 
 
 hx, hy, hz0, hz1 = center(ROOMBYID["accueil"].box)
-# Départs alignés au sud du Hall, tournés vers le nord (yaw 0) : on voit le panneau d'accueil.
+# Départs des visiteurs alignés au sud du Hall, tournés vers le nord (panneau d'accueil).
 for dx in (-288, -192, -96, 96, 192, 288):
     ENTS.append((hx + dx, hy - 64, hz0 + 4, 0, 0, 0, 0, 0, ET_PLAYERSTART))
-for r in list(ROOMS) + list(STANDROOMS.values()):
-    cx, cy, z0, z1 = center(r.box)
-    ENTS.append((cx, cy, z1 - 20, 300, 255, 245, 230, 0, ET_LIGHT))
+
+# --- Hall : marbre, accueil, plantes -----------------------------------------
+prop("reception", 1024, 1046, 270)
+for (x, y) in ((724, 852), (1324, 852), (724, 1068), (1324, 1068)):
+    prop("plant", x, y)
+prop("bench", 880, 860, 0)
+prop("bench", 1168, 860, 0)
+light(840, 960, (255, 236, 200), 320, 140)
+light(1208, 960, (255, 236, 200), 320, 140)
+item(I_SHELLS, 930, 990)
+item(I_BULLETS, 1118, 990)
+item(I_HEALTH, 1024, 930)
+ambience("amb_hall", 1024, 960, 300, 120)
+
+# --- Profil : bibliothèque / bureau -------------------------------------------
+for y in (1176, 1240, 1304):
+    prop("bookshelf", 950, y, 180)
+prop("desk", 748, 1296, 0)
+prop("chair", 776, 1296, 180)
+prop("lamp", 724, 1356)
+prop("badminton", 900, 1150, 30)
+prop("plant", 730, 1150)
+light(832, 1248, (255, 214, 150), 240)
+item(I_CARTRIDGES, 860, 1200)
+item(I_HEALTH, 860, 1330)
+monster_spawn(880, 1340, 270)
+ambience("amb_profil", 832, 1248, 190, 80)
+
+# --- Compétences : salle serveur / labo ---------------------------------------
+for y in (1172, 1212, 1252, 1292, 1332):
+    prop("rack", 1332, y, 180)
+prop("labtable", 1060, 1250, 0)
+prop("cables", 1240, 1250, 0)
+light(1100, 1250, (120, 180, 255), 220)
+light(1260, 1250, (80, 255, 170), 200)
+item(I_ROUNDS, 1180, 1180)
+item(I_HEALTH, 1180, 1340)
+monster_spawn(1250, 1340, 270)
+ambience("amb_competences", 1168, 1248, 210, 90)
+
+# --- Certificats : salle des trophées -----------------------------------------
+for y in (590, 670, 750):
+    prop("trophy", 736, y, 0)
+prop("diploma", 708, 640, 0, 34)
+prop("medal", 708, 720, 0, 34)
+prop("trophy", 930, 600, 180)
+light(832, 672, (255, 220, 140), 240)
+item(I_YELLOWARMOUR, 840, 600)
+item(I_GRENADES, 900, 740)
+monster_spawn(850, 580, 90)
+ambience("amb_certificats", 832, 672, 190, 80)
+
+# --- Tux World : banquise avec manchots ---------------------------------------
+for (x, y, yaw) in ((1040, 600, 90), (1080, 640, 45), (1060, 700, 0), (1300, 620, 135), (1210, 600, 100)):
+    prop("penguin", x, y, yaw)
+prop("igloo", 1290, 744, 180)
+prop("snowman", 1020, 760, 300)
+prop("iceblock", 1150, 690)
+light(1168, 672, (180, 220, 255), 260)
+item(I_ROCKETS, 1160, 600)
+item(I_HEALTH, 1100, 760)
+monster_spawn(1250, 700, 180)
+ENTS.append((1168, 672, GROUND + 120, 13, 256 + 14, 170, 0xFFF, 6000, ET_PARTICLES))   # neige
+ambience("amb_tux", 1168, 672, 210, 90)
+
+# --- Contact : bureau de poste ------------------------------------------------
+prop("counter", 1590, 960, 180)
+prop("phone", 1590, 930, 180, 14.5)
+prop("mailbox", 1400, 860, 0)
+prop("mailbox", 1400, 1060, 0)
+prop("parcels", 1600, 860, 180)
+light(1504, 960, (255, 240, 200), 240)
+item(I_HEALTH, 1480, 1040)
+item(I_BOOST, 1480, 880)
+monster_spawn(1520, 1060, 270)
+ambience("amb_contact", 1504, 960, 190, 80)
+
+# --- Galerie des projets ------------------------------------------------------
+prop("bench", 620, 700, 0)
+prop("bench", 620, 1200, 0)
+light(576, 640, (255, 250, 240), 260)
+light(576, 1180, (255, 250, 240), 260)
+monster_spawn(560, 500, 90)
+monster_spawn(560, 1340, 270)
+
+# Leboncoin : garage auto
+prop("car", 380, 528, 0)
+prop("tires", 284, 470)
+prop("toolbox", 290, 590, 0)
+prop("sale_sign", 450, 470, 0)
+light(368, 528, (255, 190, 120), 170)
+item(I_BULLETS, 450, 590)
+ambience("amb_leboncoin", 368, 528, 120, 50)
+# Magic Shape Generator : salle rythmique néon
+prop("planets", 380, 720, 0)
+prop("neonring", 300, 720, 0)
+prop("rhythmtile", 440, 670)
+prop("rhythmtile", 440, 770)
+light(368, 720, (230, 80, 255), 170)
+item(I_GRENADES, 450, 720)
+ambience("amb_magic", 368, 720, 120, 50)
+# Mineport : voxels
+prop("voxeltree", 300, 880)
+prop("voxelblocks", 400, 950)
+prop("voxelore", 440, 860)
+light(368, 912, (200, 255, 170), 170)
+item(I_SHELLS, 360, 860)
+ambience("amb_mineport", 368, 912, 120, 50)
+# Cube 2 : arène
+prop("arenapillar", 300, 1060)
+prop("arenapillar", 300, 1150)
+prop("target", 440, 1104, 180)
+prop("crate", 380, 1050)
+prop("crate", 400, 1160)
+light(368, 1104, (255, 110, 80), 170)
+item(I_ROCKETS, 350, 1104)
+item(I_ROUNDS, 450, 1040)
+monster_spawn(350, 1160, 0)
+ambience("amb_cube2", 368, 1104, 120, 50)
+# Portfolio OS : bureau Ubuntu géant
+prop("monitor", 368, 1364, 270)
+prop("keyboard", 368, 1300, 270)
+light(368, 1296, (255, 160, 110), 170)
+item(I_GREENARMOUR, 300, 1240)
+ambience("amb_portfolioos", 368, 1296, 120, 50)
+
+# ---------------------------------------------------------------------------
+# Points de passage des monstres (IA) : une grille au sol, 4 voisins + diagonales
+# ---------------------------------------------------------------------------
+
+
+def waypoints():
+    nodes, index = [], {}
+    for y in range(N):
+        for x in range(N):
+            if not solid[idx(x, y, FLOOR)] and not solid[idx(x, y, FLOOR + 1)] and solid[idx(x, y, FLOOR - 1)]:
+                index[(x, y)] = len(nodes) + 1
+                nodes.append((x, y))
+    out = []
+    for (x, y) in nodes:
+        links = []
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            if (x + dx, y + dy) in index:
+                links.append(index[(x + dx, y + dy)])
+        for dx, dy in ((1, 1), (-1, -1), (1, -1), (-1, 1)):
+            if len(links) >= 6:
+                break
+            if (x + dx, y + dy) in index and (x + dx, y) in index and (x, y + dy) in index:
+                links.append(index[(x + dx, y + dy)])
+        out.append(((x + 0.5) * VOX, (y + 0.5) * VOX, GROUND + 1.0, links))
+    return out
+
+
+def write_wpt(path):
+    wps = waypoints()
+    data = [b"OWPT", struct.pack("<H", len(wps))]
+    for (x, y, z, links) in wps:
+        data.append(struct.pack("<3fB", x, y, z, len(links)))
+        data.append(struct.pack("<%dH" % len(links), *links))
+    with gzip.open(path, "wb", compresslevel=9) as f:
+        f.write(b"".join(data))
+    return len(wps)
 
 
 def write_ogz(path):
@@ -340,12 +542,13 @@ def write_ogz(path):
 def write_cfg(path):
     L = []
     L.append("// portfolio.cfg - généré par tools/gen_map.py, ne pas modifier à la main")
-    L.append("// Réglages, textures et zones de la carte de la visite.")
+    L.append("// Réglages, textures, décors, ambiances et zones de la carte de la visite.")
     L.append("")
     L.append("maptitle " + cubescript_string("Visite du portfolio de Jules ROGUE"))
     L.append("skybox \"\"")
-    L.append("ambient 0x404040")
+    L.append("ambient 0x181818")
     L.append("skylight 0x000000")
+    L.append("lightprecision 16")
     L.append("fog 4000")
     L.append("fogcolour 0x0A1018")
     L.append("")
@@ -354,32 +557,33 @@ def write_cfg(path):
     for name, line in TEXTURES:
         L.append(line + "   // " + name)
     L.append("")
-    L.append("// --- Histoire et zones -----------------------------------------------")
+    L.append("// --- Décors (modèles générés par tools/gen_models.py) ----------------")
+    L.append("mapmodelreset")
+    for i, name in enumerate(MAPMODELS):
+        L.append('mmodel "%s"   // %d' % (name, i))
+    L.append("")
+    L.append("// --- Ambiances sonores des salles (tools/gen_sounds.py) --------------")
+    L.append("mapsoundreset")
+    for i, name in enumerate(MAPSOUNDS):
+        L.append('mapsound "pf/%s" 160   // %d' % (name, i))
+    L.append("")
+    L.append("// --- Histoire et zones (messages courts dans la console) -------------")
     L.append("pfreset")
-    L.append("pfobjective " + cubescript_string(STORY["objective"]))
-    L.append("pfintrotitle " + cubescript_string(STORY["intro_title"]))
-    L.append("pfintrotext " + cubescript_string(STORY["intro_text"]))
-    L.append("pfendtitle " + cubescript_string(STORY["end_title"]))
-    L.append("pfendtext " + cubescript_string(STORY["end_text"]))
+    L.append("pfintro " + cubescript_string(STORY["intro"]))
+    L.append("pfend " + cubescript_string(STORY["end"]))
     zoneboxes = []
     for r in ROOMS:
         if r.zone and r.rid != "galerie":
             zoneboxes.append((r.zone, r.box))
     for sid, sr in STANDROOMS.items():
         zoneboxes.append((sid, sr.box))
-    # La galerie hors stands (allée) : zone d'information hors progression
     gal = ROOMBYID["galerie"].box
     zoneboxes.append(("galerie", (15, gal[1], gal[2], gal[3], gal[4], gal[5])))
     order = ["accueil", "profil", "competences", "leboncoin", "magic", "mineport", "cube2",
              "portfolioos", "certificats", "tux", "contact", "galerie"]
     zoneboxes.sort(key=lambda zb: order.index(zb[0]))
     for zid, (x0, x1, y0, y1, z0, z1) in zoneboxes:
-        if zid == "galerie":
-            title, text, story = ("Galerie des projets",
-                                  "Cinq stands présentent les projets de Jules. Approche-toi de chacun "
-                                  "pour restaurer son fragment.", False)
-        else:
-            title, text, story = ZONES[zid]
+        title, text, story = ZONES[zid]
         L.append("pfzone %s %d %d %d %d %d %d %s %s %d" % (
             zid, x0 * VOX, y0 * VOX, z0 * VOX - 8, x1 * VOX, y1 * VOX, z1 * VOX + 8,
             cubescript_string(title), cubescript_string(text), 1 if story else -1))
@@ -393,7 +597,9 @@ def main():
     os.makedirs(base, exist_ok=True)
     n = write_ogz(os.path.join(base, "portfolio.ogz"))
     write_cfg(os.path.join(base, "portfolio.cfg"))
-    print("portfolio.ogz : %d octets décompressés, %d entités, %d textures" % (n, len(ENTS), len(TEXTURES)))
+    nw = write_wpt(os.path.join(base, "portfolio.wpt"))
+    print("portfolio.ogz : %d octets décompressés, %d entités, %d textures, %d décors, %d points de passage"
+          % (n, len(ENTS), len(TEXTURES), len(MAPMODELS), nw))
 
 
 if __name__ == "__main__":

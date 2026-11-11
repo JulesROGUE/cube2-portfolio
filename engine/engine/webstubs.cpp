@@ -9,3 +9,12 @@ void glPolygonMode(GLenum face, GLenum mode) {}
 void glGetTexLevelParameteriv(GLenum target, GLint level, GLenum pname, GLint *params) { if(params) *params = 0; }
 void glGetCompressedTexImage(GLenum target, GLint level, void *img) {}
 }
+
+// movie.cpp (enregistreur vidéo AVI) n'est pas compilé dans la version web.
+namespace recorder
+{
+    bool isrecording() { return false; }
+    void capture(bool overlay) {}
+    void stop() {}
+    void cleanup() {}
+}

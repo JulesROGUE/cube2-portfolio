@@ -57,7 +57,8 @@ namespace ai
     bool targetable(fpsent *d, fpsent *e)
     {
         if(d == e || !canmove(d)) return false;
-        return e->state == CS_ALIVE && !isteam(d->team, e->team);
+        // PORTFOLIO : les monstres (bots) ne s'attaquent qu'aux visiteurs humains
+        return e->state == CS_ALIVE && !isteam(d->team, e->team) && (d->aitype == AI_NONE || e->aitype == AI_NONE);
     }
 
     bool getsight(vec &o, float yaw, float pitch, vec &q, vec &v, float mdist, float fovx, float fovy)

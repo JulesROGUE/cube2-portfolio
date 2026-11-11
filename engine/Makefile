@@ -17,7 +17,7 @@ INCLUDES = -Ishared -Iengine -Ifpsgame -Ienet/include
 
 COMMONFLAGS = -fsigned-char -fno-exceptions -fno-rtti -w
 WEB_OPT ?= -Oz
-WEB_PORTS = -sUSE_ZLIB=1 -sUSE_SDL=2 -sUSE_SDL_IMAGE=2 -sSDL2_IMAGE_FORMATS='["png","jpg"]'
+WEB_PORTS = -sUSE_ZLIB=1 -sUSE_SDL=2 -sUSE_SDL_IMAGE=2 -sSDL2_IMAGE_FORMATS='["png","jpg"]' -sUSE_SDL_MIXER=2 -sSDL2_MIXER_FORMATS='[]'
 WEB_CXXFLAGS = $(WEB_OPT) -std=gnu++03 $(COMMONFLAGS) $(WEB_PORTS) $(INCLUDES) -DPORTFOLIO_WEB
 SRV_CXXFLAGS = -O2 -std=gnu++03 $(COMMONFLAGS) $(INCLUDES) -DSTANDALONE -DPORTFOLIO_SERVER
 
@@ -31,7 +31,7 @@ CLIENT_SRCS = \
 	engine/normal.cpp engine/octa.cpp engine/octaedit.cpp engine/octarender.cpp \
 	engine/physics.cpp engine/pvs.cpp engine/rendergl.cpp engine/rendermodel.cpp \
 	engine/renderparticles.cpp engine/rendersky.cpp engine/rendertext.cpp engine/renderva.cpp \
-	engine/server.cpp engine/serverbrowser.cpp engine/shader.cpp engine/shadowmap.cpp engine/nosound.cpp engine/webstubs.cpp engine/pfweb.cpp \
+	engine/server.cpp engine/serverbrowser.cpp engine/shader.cpp engine/shadowmap.cpp engine/sound.cpp engine/webstubs.cpp engine/pfweb.cpp \
 	engine/texture.cpp engine/water.cpp engine/world.cpp engine/worldio.cpp \
 	fpsgame/ai.cpp fpsgame/client.cpp fpsgame/entities.cpp fpsgame/fps.cpp fpsgame/monster.cpp \
 	fpsgame/movable.cpp fpsgame/render.cpp fpsgame/scoreboard.cpp fpsgame/server.cpp \
@@ -45,7 +45,7 @@ SERVER_SRCS = \
 WEB_OBJS = $(addprefix $(BUILD)/web/,$(CLIENT_SRCS:.cpp=.o)) $(addprefix $(BUILD)/web/enet/,$(ENET_SRCS:.c=.o))
 SRV_OBJS = $(addprefix $(BUILD)/server/,$(SERVER_SRCS:.cpp=.o)) $(addprefix $(BUILD)/server/enet/,$(ENET_SRCS:.c=.o))
 
-EXPORTS = "['_main','_malloc','_free','_pf_execute','_pf_resize']"
+EXPORTS = "['_main','_malloc','_free','_pf_execute','_pf_resize','_pf_grab']"
 RUNTIME = "['ccall','cwrap','UTF8ToString','FS','ENV','callMain']"
 
 WEB_LDFLAGS = $(WEB_OPT) $(WEB_PORTS) \

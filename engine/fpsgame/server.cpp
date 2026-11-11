@@ -453,6 +453,11 @@ namespace server
 
     VAR(lockmaprotation, 0, 0, 2);
 
+    // PORTFOLIO : monstres (bots gérés par aiman) et PvP
+    VAR(pfpvp, 0, 0, 1);              // dégâts entre visiteurs humains
+    VAR(pfmonsters, 0, 5, 16);        // nombre de monstres maintenus tant qu'un visiteur est là
+    VAR(pfmonsterskill, 1, 20, 101);  // habileté des monstres
+
     void maprotationreset()
     {
         maprotations.setsize(0);
@@ -2271,7 +2276,14 @@ namespace server
 
     void dodamage(clientinfo *target, clientinfo *actor, int damage, int gun, const vec &hitpush = vec(0, 0, 0))
     {
-        return; // PORTFOLIO : visite pacifique, aucun dégât
+        // PORTFOLIO : les monstres ne se blessent pas entre eux ; le PvP entre
+        // visiteurs est désactivable (variable serveur pfpvp, 0 par défaut).
+        if(target != actor)
+        {
+            bool tbot = target->state.aitype != AI_NONE, abot = actor->state.aitype != AI_NONE;
+            if(tbot && abot) return;
+            if(!tbot && !abot && !pfpvp) return;
+        }
         gamestate &ts = target->state;
         ts.dodamage(damage);
         if(target!=actor && !isteam(target->team, actor->team)) actor->state.damage += damage;

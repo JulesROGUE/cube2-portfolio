@@ -116,10 +116,12 @@ namespace aiman
         ci->state.skill = skill <= 0 ? rnd(50) + 51 : clamp(skill, 1, 101);
 	    clients.add(ci);
 		ci->state.lasttimeplayed = lastmillis;
-		copystring(ci->name, "bot", MAXNAMELEN+1);
+        // PORTFOLIO : les bots sont les « monstres » de la visite (bugs informatiques)
+        static const char * const pfnames[] = { "Virus", "Bug", "Glitch", "Malware", "Spam", "Troyen", "Ver", "Phishing" };
+		copystring(ci->name, pfnames[cn%(sizeof(pfnames)/sizeof(pfnames[0]))], MAXNAMELEN+1);
 		ci->state.state = CS_DEAD;
         copystring(ci->team, team, MAXTEAMLEN+1);
-        ci->playermodel = rnd(128);
+        ci->playermodel = cn; // PORTFOLIO : type de monstre (modèle, cris)
 		ci->aireinit = 2;
 		ci->connected = true;
         dorefresh = true;
@@ -216,6 +218,16 @@ namespace aiman
 
 	void checkai()
 	{
+        // PORTFOLIO : tant qu'au moins un visiteur est connecté, le serveur maintient
+        // pfmonsters monstres. Chacun est simulé par un client (« propriétaire ») et
+        // diffusé à tous : tout le monde voit les mêmes monstres.
+        if(m_botmode && numclients(-1, false, true) && findaiclient())
+        {
+            int numai = 0;
+            loopv(bots) if(bots[i] && bots[i]->ownernum >= 0) numai++;
+            while(numai < pfmonsters && addai(pfmonsterskill, -1)) numai++;
+            while(numai > pfmonsters && deleteai()) numai--;
+        }
         if(!dorefresh) return;
         dorefresh = false;
         if(m_botmode && numclients(-1, false, true))

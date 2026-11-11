@@ -78,16 +78,16 @@ namespace game
 
     // PORTFOLIO : déclaration des modèles de joueur depuis le cubescript
     // (Sour le faisait depuis JavaScript). Modèles sans armes ni ragdoll.
-    ICOMMAND(addplayermodel, "ssss", (char *ffa, char *blue, char *red, char *icon),
+    ICOMMAND(addplayermodel, "sss", (char *ffa, char *hudguns, char *icon),
     {
         if(numplayermodels >= MAX_PLAYER_MODELS) return;
-        setplayermodelinfo(ffa, blue[0] ? blue : ffa, red[0] ? red : ffa, NULL, NULL, NULL, NULL, NULL, NULL,
+        setplayermodelinfo(ffa, ffa, ffa, hudguns[0] ? hudguns : NULL, NULL, NULL, NULL, NULL, NULL,
                            icon[0] ? icon : NULL, icon[0] ? icon : NULL, icon[0] ? icon : NULL, false);
     });
 
     int chooserandomplayermodel(int seed)
     {
-        return (seed&0xFFFF)%(numplayermodels);
+        return seed&0xFFFF; // PORTFOLIO : sert d'indice de type de monstre (voir getplayermodelinfo)
     }
 
     const playermodelinfo *getplayermodelinfo(int n)
@@ -98,7 +98,10 @@ namespace game
 
     const playermodelinfo &getplayermodelinfo(fpsent *d)
     {
-        const playermodelinfo *mdl = getplayermodelinfo(d==player1 || forceplayermodels ? playermodel : d->playermodel);
+        // PORTFOLIO : modèle 0 = visiteur, modèles 1..n = monstres (bots)
+        if(d->aitype != AI_NONE && numplayermodels > 1)
+            return playermodels[1 + (d->playermodel&0xFFFF)%(numplayermodels-1)];
+        const playermodelinfo *mdl = getplayermodelinfo(d==player1 || forceplayermodels ? playermodel : 0);
         if(!mdl) mdl = getplayermodelinfo(playermodel);
         return *mdl;
     }

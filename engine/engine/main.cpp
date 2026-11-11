@@ -952,7 +952,16 @@ void checkinput()
     {
         SDL_Event &event = events.remove();
 
+#ifdef __EMSCRIPTEN__
+        // PORTFOLIO : dans le navigateur (iframe), on ne capture JAMAIS la souris sur
+        // un simple gain de focus : seulement sur un clic dans le canvas (voir
+        // SDL_MOUSEBUTTONDOWN ci-dessous et pf_grab() appelé par la coquille web).
+        // Une perte de focus relâche la capture.
+        if(focused < 0 && grabinput) inputgrab(grabinput = false);
+        focused = 0;
+#else
         if(focused && event.type!=SDL_WINDOWEVENT) { if(grabinput != (focused>0)) inputgrab(grabinput = focused>0, shouldgrab); focused = 0; }
+#endif
 
         switch(event.type)
         {
@@ -990,7 +999,12 @@ void checkinput()
                         focused = 1;
                         break;
 
+#ifdef __EMSCRIPTEN__
                     case SDL_WINDOWEVENT_LEAVE:
+                        break; // PORTFOLIO : sortir du canvas ne relâche pas la capture
+#else
+                    case SDL_WINDOWEVENT_LEAVE:
+#endif
                     case SDL_WINDOWEVENT_FOCUS_LOST:
                         shouldgrab = false;
                         focused = -1;
@@ -1030,11 +1044,21 @@ void checkinput()
                     if(!g3d_movecursor(dx, dy)) mousemove(dx, dy);
                     mousemoved = true;
                 }
+#ifndef __EMSCRIPTEN__
                 else if(shouldgrab) inputgrab(grabinput = true);
+#endif
                 break;
 
             case SDL_MOUSEBUTTONDOWN:
             case SDL_MOUSEBUTTONUP:
+#ifdef __EMSCRIPTEN__
+                if(!grabinput)
+                {
+                    // le clic qui capture la souris n'est pas transmis au jeu
+                    if(event.type == SDL_MOUSEBUTTONDOWN) inputgrab(grabinput = true);
+                    break;
+                }
+#endif
                 //if(lasttype==event.type && lastbut==event.button.button) break; // why?? get event twice without it
                 switch(event.button.button)
                 {
@@ -1059,7 +1083,11 @@ void checkinput()
                 break;
         }
     }
+#ifdef __EMSCRIPTEN__
+    if(focused < 0 && grabinput) inputgrab(grabinput = false);
+#else
     if(focused) { if(grabinput != (focused>0)) inputgrab(grabinput = focused>0, shouldgrab); focused = 0; }
+#endif
     if(mousemoved) resetmousemotion();
 }
 
@@ -1421,7 +1449,11 @@ void main3(void *arg)
     initmumble();
     resetfpshistory();
 
+#ifdef __EMSCRIPTEN__
+    inputgrab(grabinput = false); // PORTFOLIO : capture au premier clic seulement
+#else
     inputgrab(grabinput = true);
+#endif
     ignoremousemotion();
 
 #if __EMSCRIPTEN__

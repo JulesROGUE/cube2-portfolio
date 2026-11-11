@@ -354,6 +354,7 @@ namespace game
     {
         int ent = m_classicsp && d == player1 && respawnent >= 0 ? respawnent : -1;
         int tag = cmode ? cmode->getspawngroup(d) : 0;
+        if(d->aitype != AI_NONE) tag = 9; // PORTFOLIO : les monstres apparaissent dans les salles
         findplayerspawn(d, ent, tag);
     }
 
@@ -448,6 +449,7 @@ namespace game
 
         if(d->health<=0) { if(local) killed(d, actor); }
         else if(d==h) playsound(S_PAIN6);
+        else if(d->aitype != AI_NONE) playsound(S_PAINR + 2*(d->playermodel%3), &d->o); // PORTFOLIO : cri du monstre (virus, bug, glitch)
         else playsound(S_PAIN1+rnd(5), &d->o);
     }
 
@@ -477,7 +479,8 @@ namespace game
             d->move = d->strafe = 0;
             d->resetinterp();
             d->smoothmillis = 0;
-            playsound(S_DIE1+rnd(2), &d->o);
+            playsound(d->aitype != AI_NONE ? S_DEATHR + 2*(d->playermodel%3) : S_DIE1+rnd(2), &d->o); // PORTFOLIO
+
         }
     }
 
@@ -1116,7 +1119,7 @@ namespace game
         fpsent *d = hudplayer();
         if(d->state!=CS_EDITING)
         {
-            // PORTFOLIO : pas d icônes santé / munitions (visite pacifique)
+            if(d->state!=CS_SPECTATOR) drawhudicons(d);
             if(cmode) cmode->drawhud(d, w, h);
         }
 
@@ -1133,7 +1136,6 @@ namespace game
             if(hudscore) drawhudscore(w, h);
         }
 
-        portfolio::drawhud(w, h); // PORTFOLIO : panneaux de la visite
     }
 
     int clipconsole(int w, int h)

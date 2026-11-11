@@ -40,5 +40,10 @@ make -C engine web -j"$JOBS" WEB_OUT="$OUT"
 
 echo "==> Coquille web"
 cp web/index.html web/portfolio.js web/portfolio.css "$OUT/"
+# numéro de build : empreinte des fichiers produits, injectée dans index.html
+# (toutes les ressources sont demandées avec ?v=<build>, voir portfolio.js)
+BUILD="$(cat "$OUT/cube2.js" "$OUT/cube2.wasm" "$OUT/cube2-data.js" "$OUT/portfolio.js" "$OUT/portfolio.css" | sha1sum | cut -c1-12)"
+sed -i "s/__BUILD__/$BUILD/g" "$OUT/index.html"
+echo "==> Build $BUILD"
 
 ls -la "$OUT"

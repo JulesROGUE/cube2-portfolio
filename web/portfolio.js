@@ -39,15 +39,109 @@
     return { w: Math.max(320, canvas.clientWidth || innerWidth), h: Math.max(240, canvas.clientHeight || innerHeight) };
   }
 
+  // --- Version du build et progression du chargement -------------------------
+  // Toutes les ressources sont demandées avec ?v=<build> : un cache (navigateur ou
+  // Cloudflare) ne peut plus mélanger l'ancien chargeur avec les nouvelles données,
+  // ce qui bloquait le jeu sur « Chargement ».
+  var buildMeta = document.querySelector('meta[name="build"]');
+  var BUILD = buildMeta && buildMeta.content !== '__BUILD__' ? buildMeta.content : '';
+  function versioned(path) { return BUILD ? path + '?v=' + BUILD : path; }
+
+  var stepEl = document.getElementById('ld-step');
+  var fillEl = document.getElementById('ld-fill');
+  var detailEl = document.getElementById('ld-detail');
+  var dl = { wasm: [0, 0], data: [0, 0] };   // [chargé, total] en octets
+  var phase = 'download';
+  // taille réelle (décompressée) du paquet de données : Emscripten annonce la taille
+  // gzip comme total, ce qui faisait grimper le total en cours de route
+  var dataRaw = 0;
+  fetch(versioned('cube2.data'), { method: 'HEAD' }).then(function (r) {
+    dataRaw = +r.headers.get('X-Raw-Length') || 0;
+    if (dataRaw && dl.data[1] < dataRaw) { dl.data[1] = dataRaw; renderProgress(); }
+  }).catch(function () {});
+  function mo(n) { return (n / 1048576).toLocaleString('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: 1 }); }
+  function renderProgress() {
+    if (phase !== 'download') return;
+    var loaded = dl.wasm[0] + dl.data[0];
+    var total = dl.wasm[1] + dl.data[1];
+    var pct = total ? Math.min(100, Math.round(loaded / total * 100)) : 0;
+    stepEl.textContent = 'Étape 1/2 · Téléchargement du jeu';
+    fillEl.style.width = pct + '%';
+    detailEl.textContent = total
+      ? mo(loaded) + ' / ' + mo(total) + ' Mo (' + pct + ' %) — moteur ' + mo(dl.wasm[0]) + '/' + mo(dl.wasm[1]) + ' Mo, données ' + mo(dl.data[0]) + '/' + mo(dl.data[1]) + ' Mo'
+      : 'Connexion au serveur…';
+  }
+  function setPhase(name, text) {
+    phase = name;
+    stepEl.textContent = name === 'prepare' ? 'Étape 2/2 · Préparation de la carte' : stepEl.textContent;
+    fillEl.style.width = '100%';
+    fillEl.className = name === 'prepare' ? 'ld-fill indeterminate' : 'ld-fill';
+    detailEl.textContent = text;
+  }
+  function loadError(e) {
+    stepEl.textContent = 'Le chargement a échoué';
+    detailEl.className = 'ld-detail ld-error';
+    detailEl.textContent = 'Actualise la page pour réessayer (' + (e && e.message ? e.message : e) + ').';
+  }
+
   var noop = function () {};
   window.Module = {
+    locateFile: function (path) { return versioned(path); },
+    // Téléchargement du moteur (.wasm) en suivant sa progression
+    instantiateWasm: function (imports, receive) {
+      fetch(versioned('cube2.wasm')).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        dl.wasm[1] = +r.headers.get('X-Raw-Length') || +r.headers.get('Content-Length') || 0;
+        renderProgress();
+        if (!r.body || !r.body.getReader) return r.arrayBuffer();
+        var reader = r.body.getReader();
+        var chunks = [];
+        var got = 0;
+        var pump = function () {
+          return reader.read().then(function (res) {
+            if (res.done) return;
+            chunks.push(res.value);
+            got += res.value.length;
+            dl.wasm[0] = got;
+            if (got > dl.wasm[1]) dl.wasm[1] = got;
+            renderProgress();
+            return pump();
+          });
+        };
+        return pump().then(function () {
+          var buf = new Uint8Array(got);
+          var off = 0;
+          chunks.forEach(function (c) { buf.set(c, off); off += c.length; });
+          return buf.buffer;
+        });
+      }).then(function (bytes) {
+        return WebAssembly.instantiate(bytes, imports);
+      }).then(function (out) {
+        receive(out.instance, out.module);
+      }).catch(loadError);
+      return {};
+    },
     canvas: canvas,
     desiredWidth: viewport().w,
     desiredHeight: viewport().h,
     websocket: { url: wsUrl, subprotocol: 'binary' },
     print: function (t) { console.log(t); },
     printErr: function (t) { console.warn(t); },
-    setStatus: function (t) { statusEl.textContent = t || ''; },
+    // Messages d'Emscripten : « Downloading data... (x/y) », « Preparing... (n/m) », « Running... »
+    setStatus: function (t) {
+      t = t || '';
+      var m = /Downloading data\.\.\. \((\d+)\/(\d+)\)/.exec(t);
+      if (m) {
+        dl.data = [+m[1], Math.max(dataRaw, +m[2], +m[1])];
+        renderProgress();
+        statusEl.textContent = '';
+        return;
+      }
+      if (/Preparing|Running/.test(t) || (t === '' && dl.data[1] && dl.data[0] >= dl.data[1])) {
+        setPhase('prepare', 'Décompression des fichiers, chargement de la carte et calcul de l\'éclairage…');
+      }
+      statusEl.textContent = t.replace('Preparing...', 'Préparation…').replace('Running...', 'Démarrage…');
+    },
     // Crochets appelés par le moteur (hérités de BananaBread / Sour)
     autoexec: function () {
       ready = true;
@@ -148,7 +242,7 @@
   var quitting = false, expectUnlockUntil = 0;
   var hint = document.createElement('div');
   hint.id = 'hint';
-  hint.textContent = 'Clique pour reprendre la visite';
+  hint.textContent = 'Click to resume';
   document.body.appendChild(hint);
 
   function locked() { return document.pointerLockElement === canvas; }

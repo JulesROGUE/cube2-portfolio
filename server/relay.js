@@ -54,8 +54,13 @@ function serveStatic(req, res, rel) {
     const headers = {
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'X-Content-Type-Options': 'nosniff',
-      // index.html et la coquille changent à chaque build ; le reste peut être mis en cache brièvement.
-      'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600',
+      // Ressources demandées avec ?v=<build> : contenu figé pour cette version, donc
+      // cache long (navigateur et Cloudflare). index.html et toute ressource sans
+      // version sont revalidés à chaque fois : on ne mélange jamais deux builds.
+      'Cache-Control': /[?&]v=/.test(req.url) ? 'public, max-age=31536000, immutable'
+        : (rel.startsWith('music/') ? 'public, max-age=86400' : 'no-cache'),
+      // taille réelle (non compressée) : sert à la barre de progression du moteur
+      'X-Raw-Length': st.size,
       'Vary': 'Accept-Encoding',
     };
     let target = file, size = st.size;

@@ -296,6 +296,7 @@ namespace game
             {
                 if(player1->ragdoll) cleanragdoll(player1);
                 moveplayer(player1, 10, true);
+                portfolio::update(); // PORTFOLIO : zones / histoire
                 swayhudgun(curtime);
                 entities::checkitems(player1);
                 if(m_sp)
@@ -663,7 +664,7 @@ namespace game
             cmode->setup();
         }
 
-        conoutf(CON_GAMEINFO, "\f2game mode is %s", server::modename(gamemode));
+        conoutf(CON_GAMEINFO, "\f2mode de jeu : %s", server::modename(gamemode));
 
         if(m_sp)
         {
@@ -1115,7 +1116,7 @@ namespace game
         fpsent *d = hudplayer();
         if(d->state!=CS_EDITING)
         {
-            if(d->state!=CS_SPECTATOR) drawhudicons(d);
+            // PORTFOLIO : pas d icônes santé / munitions (visite pacifique)
             if(cmode) cmode->drawhud(d, w, h);
         }
 
@@ -1131,6 +1132,8 @@ namespace game
             if(gameclock) drawgameclock(w, h);
             if(hudscore) drawhudscore(w, h);
         }
+
+        portfolio::drawhud(w, h); // PORTFOLIO : panneaux de la visite
     }
 
     int clipconsole(int w, int h)

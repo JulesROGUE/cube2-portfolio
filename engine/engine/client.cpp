@@ -1,7 +1,9 @@
 // client.cpp, mostly network related client game code
 
 #include "engine.h"
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
 #include <string.h>
 
 ENetHost *clienthost = NULL;

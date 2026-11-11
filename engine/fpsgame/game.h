@@ -102,7 +102,7 @@ static struct gamemodeinfo
     { "SP", M_LOCAL | M_CLASSICSP, NULL },
     { "DMSP", M_LOCAL | M_DMSP, NULL },
     { "demo", M_DEMO | M_LOCAL, NULL},
-    { "ffa", M_LOBBY, "Free For All: Collect items for ammo. Frag everyone to score points." },
+    { "visite", M_LOBBY, "Visite du portfolio : explore les salles et discute avec les autres visiteurs." }, // PORTFOLIO (ex-ffa)
     { "coop edit", M_EDIT, "Cooperative Editing: Edit maps with multiple players simultaneously." },
     { "teamplay", M_TEAM, "Teamplay: Collect items for ammo. Frag \fs\f3the enemy team\fr to score points for \fs\f1your team\fr." },
     { "instagib", M_NOITEMS | M_INSTA, "Instagib: You spawn with full rifle ammo and die instantly from one shot. There are no items. Frag everyone to score points." },
@@ -863,6 +863,14 @@ namespace server
     extern int msgsizelookup(int msg);
     extern bool serveroption(const char *arg);
     extern bool delayspawn(int type);
+}
+
+// PORTFOLIO : module de visite (fpsgame/portfolio.cpp)
+namespace portfolio
+{
+    extern void update();
+    extern void drawhud(int w, int h);
+    extern void reset();
 }
 
 #endif

@@ -1,7 +1,9 @@
 #include "game.h"
 
 #if __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
 #endif
 
 #if __EMSCRIPTEN__

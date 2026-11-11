@@ -776,10 +776,19 @@ namespace server
         return false;
     }
 
+    // PORTFOLIO : une seule carte (la visite) en mode ffa « pacifique »,
+    // sans limite de temps pratique ni vote de carte.
+    #define PF_MAP "portfolio"
+    #define PF_MODE 0
+    void changemap(const char *s, int mode);
+
     void serverinit()
     {
         smapname[0] = '\0';
         resetitems();
+#ifdef STANDALONE
+        changemap(PF_MAP, PF_MODE);
+#endif
     }
 
     int numclients(int exclude = -1, bool nospec = true, bool noai = true, bool priv = false)
@@ -2041,7 +2050,7 @@ namespace server
 
         gamemode = mode;
         gamemillis = 0;
-        gamelimit = 10*60000;
+        gamelimit = 24*60*60000; // PORTFOLIO : 24 h au lieu de 10 min
         interm = 0;
         nextexceeded = 0;
         copystring(smapname, s);
@@ -2167,6 +2176,9 @@ namespace server
 
     void vote(const char *map, int reqmode, int sender)
     {
+        // PORTFOLIO : on revient toujours sur la carte de la visite.
+        map = PF_MAP;
+        reqmode = PF_MODE;
         clientinfo *ci = getinfo(sender);
         if(!ci || (ci->state.state==CS_SPECTATOR && !ci->privilege && !ci->local) || (!ci->local && !m_mp(reqmode))) return;
         if(!m_valid(reqmode)) return;
@@ -2259,6 +2271,7 @@ namespace server
 
     void dodamage(clientinfo *target, clientinfo *actor, int damage, int gun, const vec &hitpush = vec(0, 0, 0))
     {
+        return; // PORTFOLIO : visite pacifique, aucun dégât
         gamestate &ts = target->state;
         ts.dodamage(damage);
         if(target!=actor && !isteam(target->team, actor->team)) actor->state.damage += damage;

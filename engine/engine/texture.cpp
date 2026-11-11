@@ -2,7 +2,9 @@
 
 #include "engine.h"
 #include "SDL_image.h"
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
 
 #ifndef SDL_IMAGE_VERSION_ATLEAST
 #define SDL_IMAGE_VERSION_ATLEAST(X, Y, Z) \

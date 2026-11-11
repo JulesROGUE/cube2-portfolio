@@ -76,6 +76,15 @@ namespace game
         p.ragdoll = ragdoll;
     }
 
+    // PORTFOLIO : déclaration des modèles de joueur depuis le cubescript
+    // (Sour le faisait depuis JavaScript). Modèles sans armes ni ragdoll.
+    ICOMMAND(addplayermodel, "ssss", (char *ffa, char *blue, char *red, char *icon),
+    {
+        if(numplayermodels >= MAX_PLAYER_MODELS) return;
+        setplayermodelinfo(ffa, blue[0] ? blue : ffa, red[0] ? red : ffa, NULL, NULL, NULL, NULL, NULL, NULL,
+                           icon[0] ? icon : NULL, icon[0] ? icon : NULL, icon[0] ? icon : NULL, false);
+    });
+
     int chooserandomplayermodel(int seed)
     {
         return (seed&0xFFFF)%(numplayermodels);

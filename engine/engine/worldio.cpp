@@ -3,7 +3,9 @@
 #include "engine.h"
 
 #if __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
 #endif
 
 void validmapname(char *dst, const char *src, const char *prefix = NULL, const char *alt = "untitled", size_t maxlen = 100)
@@ -1036,13 +1038,10 @@ void set_loading_world(bool flag)
 }
 
 bool load_world(const char *mname, const char *cname) {
+    // PORTFOLIO : les données sont préchargées dans le FS Emscripten, on charge
+    // donc la carte directement (pas de téléchargement asynchrone comme Sour).
     entities::setloading(true);
-    EM_ASM({
-        Module.assets.loadWorld(UTF8ToString($0))
-    }, mname);
-	renderprogress(0, "fetching map data...");
-	async_loading_map = true;
-    return false;
+    return really_load_world(mname, cname);
 }
 
 bool really_load_world(const char *mname, const char *cname)        // still supports all map formats that have existed since the earliest cube betas!

@@ -2,7 +2,9 @@
 // runs dedicated or as client coroutine
 
 #include "engine.h"
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
 
 #define LOGSTRLEN 512
 

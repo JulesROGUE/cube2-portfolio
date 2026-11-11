@@ -1,7 +1,9 @@
 // shader.cpp: OpenGL GLSL shader management
 
 #include "engine.h"
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
 
 Shader *Shader::lastshader = NULL;
 

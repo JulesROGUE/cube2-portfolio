@@ -1,5 +1,7 @@
 #include "engine.h"
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
 
 VAR(oqdynent, 0, 1, 1);
 VAR(animationinterpolationtime, 0, 150, 1000);

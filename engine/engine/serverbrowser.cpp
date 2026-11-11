@@ -2,7 +2,9 @@
 
 #include "engine.h"
 #if __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
 #endif
 
 struct resolverthread

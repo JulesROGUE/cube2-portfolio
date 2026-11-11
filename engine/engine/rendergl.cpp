@@ -1,7 +1,9 @@
 // rendergl.cpp: core opengl rendering stuff
 
 #if __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
 #endif
 
 #include "engine.h"

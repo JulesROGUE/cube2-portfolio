@@ -778,6 +778,7 @@ namespace game
 
     void shoot(fpsent *d, const vec &targ)
     {
+        if(d==player1) { d->attacking = false; return; } // PORTFOLIO : visite pacifique
         int prevaction = d->lastaction, attacktime = lastmillis-prevaction;
         if(attacktime<d->gunwait) return;
         d->gunwait = 0;

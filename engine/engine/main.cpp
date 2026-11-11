@@ -473,8 +473,13 @@ bool shouldgrab = false, grabinput = false, minimized = false, canrelativemouse 
 VAR(sdl_xgrab_bug, 0, 0, 1);
 #endif
 
+// PORTFOLIO : nombre d'événements de mouvement ignorés juste après la capture de la
+// souris (les navigateurs envoient parfois un premier movementX/Y énorme).
+int pfskipmotion = 0;
+
 void inputgrab(bool on, bool delay = false)
 {
+    if(on) pfskipmotion = 2;
 #ifdef SDL_VIDEO_DRIVER_X11
     bool wasrelativemouse = relativemouse;
 #endif
@@ -1040,6 +1045,11 @@ void checkinput()
                 if(grabinput)
                 {
                     int dx = event.motion.xrel, dy = event.motion.yrel;
+#ifdef __EMSCRIPTEN__
+                    // PORTFOLIO : pas de saut de la vue à la capture, ni de delta aberrant
+                    if(pfskipmotion > 0) { pfskipmotion--; break; }
+                    if(abs(dx) > 300 || abs(dy) > 300) break;
+#endif
                     checkmousemotion(dx, dy);
                     if(!g3d_movecursor(dx, dy)) mousemove(dx, dy);
                     mousemoved = true;
@@ -1052,12 +1062,7 @@ void checkinput()
             case SDL_MOUSEBUTTONDOWN:
             case SDL_MOUSEBUTTONUP:
 #ifdef __EMSCRIPTEN__
-                if(!grabinput)
-                {
-                    // le clic qui capture la souris n'est pas transmis au jeu
-                    if(event.type == SDL_MOUSEBUTTONDOWN) inputgrab(grabinput = true);
-                    break;
-                }
+                if(!grabinput) break; // clic de capture : la coquille web gère le pointer lock
 #endif
                 //if(lasttype==event.type && lastbut==event.button.button) break; // why?? get event twice without it
                 switch(event.button.button)

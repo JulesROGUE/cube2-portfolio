@@ -78,11 +78,17 @@ namespace game
 
     // PORTFOLIO : déclaration des modèles de joueur depuis le cubescript
     // (Sour le faisait depuis JavaScript). Modèles sans armes ni ragdoll.
-    ICOMMAND(addplayermodel, "sss", (char *ffa, char *hudguns, char *icon),
+    // addplayermodel ffa bleu rouge armes vwep quad armure0 armure1 armure2 icône ragdoll
+    // (icônes bleue/rouge déduites : <icône>_blue, <icône>_red, comme la liste d'origine)
+    #define PFSTR(s) ((s)[0] ? (s) : NULL)
+    ICOMMAND(addplayermodel, "ssssssssssi", (char *ffa, char *blue, char *red, char *hudguns, char *vwep, char *quad,
+                                             char *a0, char *a1, char *a2, char *icon, int *ragdoll),
     {
         if(numplayermodels >= MAX_PLAYER_MODELS) return;
-        setplayermodelinfo(ffa, ffa, ffa, hudguns[0] ? hudguns : NULL, NULL, NULL, NULL, NULL, NULL,
-                           icon[0] ? icon : NULL, icon[0] ? icon : NULL, icon[0] ? icon : NULL, false);
+        defformatstring(iconb, "%s_blue", icon);
+        defformatstring(iconr, "%s_red", icon);
+        setplayermodelinfo(ffa, blue[0] ? blue : ffa, red[0] ? red : ffa, PFSTR(hudguns), PFSTR(vwep), PFSTR(quad),
+                           PFSTR(a0), PFSTR(a1), PFSTR(a2), PFSTR(icon), icon[0] ? iconb : NULL, icon[0] ? iconr : NULL, *ragdoll != 0);
     });
 
     int chooserandomplayermodel(int seed)
@@ -100,7 +106,7 @@ namespace game
     {
         // PORTFOLIO : modèle 0 = visiteur, modèles 1..n = monstres (bots)
         if(d->aitype != AI_NONE && numplayermodels > 1)
-            return playermodels[1 + (d->playermodel&0xFFFF)%(numplayermodels-1)];
+            return playermodels[1 + (d->playermodel%4)%(numplayermodels-1)];
         const playermodelinfo *mdl = getplayermodelinfo(d==player1 || forceplayermodels ? playermodel : 0);
         if(!mdl) mdl = getplayermodelinfo(playermodel);
         return *mdl;

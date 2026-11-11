@@ -2067,7 +2067,8 @@ namespace game
 
             case N_SERVMSG:
                 getstring(text, p);
-                conoutf("%s", text);
+                if(!strncmp(text, "#pf ", 4)) portfolio::servermsg(text + 4); // PORTFOLIO : état des arènes / du boss
+                else conoutf("%s", text);
                 break;
 
             case N_SENDDEMOLIST:

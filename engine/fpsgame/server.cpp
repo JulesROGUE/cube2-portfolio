@@ -236,7 +236,10 @@ namespace server
         int authkickvictim;
         char *authkickreason;
 
-        clientinfo() : getdemo(NULL), getmap(NULL), clipboard(NULL), authchallenge(NULL), authkickreason(NULL) { reset(); }
+        int pfgroup;   // PORTFOLIO : 0 = monstre errant, 1/2 = vague d'arène, 3 = boss et renforts
+        bool pfboss;   // PORTFOLIO : boss final
+
+        clientinfo() : pfgroup(0), pfboss(false), getdemo(NULL), getmap(NULL), clipboard(NULL), authchallenge(NULL), authkickreason(NULL) { reset(); }
         ~clientinfo() { events.deletecontents(); cleanclipboard(); cleanauth(); }
 
         void addevent(gameevent *e)
@@ -454,8 +457,7 @@ namespace server
     VAR(lockmaprotation, 0, 0, 2);
 
     // PORTFOLIO : monstres (bots gérés par aiman) et PvP
-    VAR(pfpvp, 0, 0, 1);              // dégâts entre visiteurs humains
-    VAR(pfmonsters, 0, 5, 16);        // nombre de monstres maintenus tant qu'un visiteur est là
+    VAR(pfmonsters, 0, 4, 16);        // nombre de monstres maintenus tant qu'un visiteur est là
     VAR(pfmonsterskill, 1, 20, 101);  // habileté des monstres
 
     void maprotationreset()
@@ -783,6 +785,16 @@ namespace server
 
     // PORTFOLIO : une seule carte (la visite) en mode ffa « pacifique »,
     // sans limite de temps pratique ni vote de carte.
+    // PORTFOLIO : phases de combat et boss (implémentées plus bas, après aiman.h)
+    namespace pfgame
+    {
+        void servcmd(clientinfo *ci, const char *cmd);
+        void update();
+        void died(clientinfo *target, clientinfo *actor);
+        bool canspawn(clientinfo *ci);
+        void setupspawn(clientinfo *ci);
+    }
+
     #define PF_MAP "portfolio"
     #define PF_MODE 0
     void changemap(const char *s, int mode);
@@ -1828,6 +1840,7 @@ namespace server
     {
         gamestate &gs = ci->state;
         spawnstate(ci);
+        pfgame::setupspawn(ci); // PORTFOLIO : boss renforcé
         sendf(ci->ownernum, 1, "rii7v", N_SPAWNSTATE, ci->clientnum, gs.lifesequence,
             gs.health, gs.maxhealth,
             gs.armour, gs.armourtype,
@@ -2276,13 +2289,12 @@ namespace server
 
     void dodamage(clientinfo *target, clientinfo *actor, int damage, int gun, const vec &hitpush = vec(0, 0, 0))
     {
-        // PORTFOLIO : les monstres ne se blessent pas entre eux ; le PvP entre
-        // visiteurs est désactivable (variable serveur pfpvp, 0 par défaut).
+        // PORTFOLIO : les monstres ne se blessent pas entre eux (le reste — PvP entre
+        // visiteurs, dégâts sur soi — suit les règles d'origine).
         if(target != actor)
         {
-            bool tbot = target->state.aitype != AI_NONE, abot = actor->state.aitype != AI_NONE;
-            if(tbot && abot) return;
-            if(!tbot && !abot && !pfpvp) return;
+            if(target->state.aitype != AI_NONE && actor->state.aitype != AI_NONE) return;
+            if(actor->pfboss) damage *= 2; // attaques renforcées du boss
         }
         gamestate &ts = target->state;
         ts.dodamage(damage);
@@ -2310,6 +2322,7 @@ namespace server
             teaminfo *t = m_teammode ? teaminfos.access(actor->team) : NULL;
             if(t) t->frags += fragvalue; 
             sendf(-1, 1, "ri5", N_DIED, target->clientnum, actor->clientnum, actor->state.frags, t ? t->frags : 0);
+            pfgame::died(target, actor); // PORTFOLIO
             target->position.setsize(0);
             if(smode) smode->died(target, actor);
             ts.state = CS_DEAD;
@@ -2522,6 +2535,7 @@ namespace server
                     }
                 }
                 aiman::checkai();
+                pfgame::update();
                 if(smode) smode->update();
             }
         }
@@ -3187,6 +3201,7 @@ namespace server
 
             case N_TRYSPAWN:
                 if(!ci || !cq || cq->state.state!=CS_DEAD || cq->state.lastspawn>=0 || (smode && !smode->canspawn(cq))) break;
+                if(!pfgame::canspawn(cq)) break; // PORTFOLIO : les monstres de vague ne réapparaissent pas
                 if(!ci->clientmap[0] && !ci->mapcrc)
                 {
                     ci->mapcrc = -1;
@@ -3756,6 +3771,7 @@ namespace server
 
             case N_SERVCMD:
                 getstring(text, p);
+                if(ci) pfgame::servcmd(ci, text); // PORTFOLIO : déclenchement des arènes / du boss
                 break;
                      
             #define PARSEMESSAGES 1
@@ -3827,5 +3843,137 @@ namespace server
     }
 
     #include "aiman.h"
+
+    // =====================================================================
+    // PORTFOLIO : phases de combat (vagues d'arène) et boss final.
+    // Le serveur fait autorité : les clients signalent seulement leur entrée dans
+    // une arène (« pfarena N ») ou qu'ils ont les 10 fragments (« pfboss ») ; le
+    // serveur crée les monstres (bots aiman, simulés par un client et vus par tous),
+    // suit leur mort et diffuse l'état aux clients par des messages « #pf ... ».
+    // =====================================================================
+    namespace pfgame
+    {
+        enum { NUMARENAS = 2, COOLDOWN = 45000 };
+        static const char * const arenanames[NUMARENAS] = { "la banquise de Tux World", "le Colisée" };
+        static int arenastate[NUMARENAS] = { 0, 0 }, arenamillis[NUMARENAS] = { 0, 0 };   // 0 libre, 1 vague en cours, 2 repos
+        static int bossstate = 0;   // 0 pas encore, 1 en cours, 2 vaincu
+        VAR(pfbosshealth, 1, 1500, 20000);
+        VAR(pfwavehealth, 1, 100, 1000);   // santé des monstres de vague (réglable pour les tests)
+
+        static void message(const char *fmt, ...)
+        {
+            defvformatstring(msg, fmt, fmt);
+            string cube;   // UTF-8 -> jeu de caractères de Cube 2 (accents)
+            size_t n = decodeutf8((uchar *)cube, MAXSTRLEN-1, (const uchar *)msg, strlen(msg));
+            cube[n] = '\0';
+            sendf(-1, 1, "ris", N_SERVMSG, cube);
+        }
+
+        static int countgroup(int group, bool alive)
+        {
+            int n = 0;
+            loopv(bots) if(bots[i] && bots[i]->ownernum >= 0 && bots[i]->pfgroup == group)
+            {
+                if(!alive || bots[i]->state.state != CS_DEAD || !bots[i]->state.deaths) n++;
+            }
+            return n;
+        }
+
+        static void clearbots(int group)
+        {
+            loopvrev(bots) if(bots[i] && bots[i]->pfgroup == group) aiman::deleteai(bots[i]);
+        }
+
+        static void spawn(int group, int type, int skill, const char *name, bool boss = false)
+        {
+            aiman::pfnextgroup = group;
+            aiman::pfnexttype = type;
+            aiman::pfnextname = name;
+            aiman::pfnextboss = boss;
+            aiman::addai(skill, -1);
+            aiman::pfnextgroup = 0;
+            aiman::pfnexttype = -1;
+            aiman::pfnextname = NULL;
+            aiman::pfnextboss = false;
+        }
+
+        void setupspawn(clientinfo *ci)
+        {
+            if(ci->pfgroup && !ci->pfboss) { ci->state.maxhealth = ci->state.health = pfwavehealth; return; }
+            if(!ci->pfboss) return;
+            gamestate &gs = ci->state;
+            gs.maxhealth = gs.health = pfbosshealth;
+            gs.armour = 100;
+            gs.armourtype = A_YELLOW;
+            gs.ammo[GUN_RL] = 999;
+            gs.ammo[GUN_CG] = 999;
+            gs.gunselect = GUN_RL;
+        }
+
+        bool canspawn(clientinfo *ci)
+        {
+            return ci->state.aitype == AI_NONE || ci->pfgroup == 0 || ci->state.deaths == 0;
+        }
+
+        void servcmd(clientinfo *ci, const char *cmd)
+        {
+            if(ci->state.aitype != AI_NONE || !m_botmode) return;
+            int a = -1;
+            if(sscanf(cmd, "pfarena %d", &a) == 1)
+            {
+                if(a < 0 || a >= NUMARENAS || arenastate[a] != 0 || (a == 1 && bossstate == 1)) return;
+                arenastate[a] = 1;
+                arenamillis[a] = gamemillis;
+                // vague : monstres du mode solo (0 rat, 1 slith, 2 bauul, 3 hellpig)
+                static const int waves[NUMARENAS][6] = { { 0, 1, 0, 1, -1, -1 }, { 0, 3, 1, 2, 3, -1 } };
+                for(int i = 0; i < 6 && waves[a][i] >= 0; i++) spawn(a + 1, waves[a][i], 25 + 5*i, NULL);
+                message("\f3Vague de monstres dans %s ! Nettoyez la zone (elle reste fermée pendant le combat).", arenanames[a]);
+                sendf(-1, 1, "ris", N_SERVMSG, a ? "#pf arena 1 1" : "#pf arena 0 1");
+            }
+            else if(!strcmp(cmd, "pfboss"))
+            {
+                if(bossstate != 0 || arenastate[1] == 1) return;
+                bossstate = 1;
+                spawn(3, 2, 70, "KernelPanic", true);
+                spawn(3, 0, 30, NULL);
+                spawn(3, 1, 30, NULL);
+                spawn(3, 3, 30, NULL);
+                message("\f3Le boss KernelPanic est apparu dans le Colisée, avec ses renforts ! Tous à l'arène !");
+                sendf(-1, 1, "ris", N_SERVMSG, "#pf boss 1");
+            }
+        }
+
+        void died(clientinfo *target, clientinfo *actor)
+        {
+            if(!target->pfboss || bossstate != 1) return;
+            bossstate = 2;
+            message("\f0%s a vaincu le boss KernelPanic ! Le portfolio de Jules est entièrement restauré.", actor->state.aitype == AI_NONE ? actor->name : "Quelqu'un");
+            sendf(-1, 1, "ris", N_SERVMSG, "#pf bossdown");
+        }
+
+        void update()
+        {
+            if(!numclients(-1, false, true))
+            {
+                loopi(NUMARENAS) { arenastate[i] = 0; clearbots(i + 1); }
+                bossstate = 0;
+                clearbots(3);
+                return;
+            }
+            loopi(NUMARENAS)
+            {
+                if(arenastate[i] == 1 && gamemillis - arenamillis[i] > 2000 && !countgroup(i + 1, true))
+                {
+                    arenastate[i] = 2;
+                    arenamillis[i] = gamemillis;
+                    clearbots(i + 1);
+                    message("\f0%s est nettoyé(e) : l'arène se rouvre !", arenanames[i]);
+                    sendf(-1, 1, "ris", N_SERVMSG, i ? "#pf arenadone 1" : "#pf arenadone 0");
+                }
+                else if(arenastate[i] == 2 && gamemillis - arenamillis[i] > COOLDOWN) arenastate[i] = 0;
+            }
+            if(bossstate == 2 && countgroup(3, false)) clearbots(3);
+        }
+    }
 }
 

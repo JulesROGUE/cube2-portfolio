@@ -209,9 +209,7 @@ enum
 
     S_HIT,
     
-    S_FLAGFAIL,
-
-    S_PF_STEP // PORTFOLIO : bruit de pas
+    S_FLAGFAIL
 };
 
 // network messages codes, c2s, c2c, s2c
@@ -872,6 +870,7 @@ namespace portfolio
 {
     extern void update();
     extern void reset();
+    extern void servermsg(const char *msg);
 }
 
 #endif

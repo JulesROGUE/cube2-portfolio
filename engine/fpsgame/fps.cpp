@@ -354,7 +354,9 @@ namespace game
     {
         int ent = m_classicsp && d == player1 && respawnent >= 0 ? respawnent : -1;
         int tag = cmode ? cmode->getspawngroup(d) : 0;
-        if(d->aitype != AI_NONE) tag = 9; // PORTFOLIO : les monstres apparaissent dans les salles
+        // PORTFOLIO : les monstres apparaissent sur des départs dédiés (9 = salles,
+        // 10 = arène de la banquise, 11 = Colisée, 12 = boss) selon leur groupe.
+        if(d->aitype != AI_NONE) tag = 9 + (d->playermodel/4)%4;
         findplayerspawn(d, ent, tag);
     }
 
@@ -423,6 +425,11 @@ namespace game
 
     VARP(hitsound, 0, 0, 1);
 
+    // PORTFOLIO : sons d'origine des monstres du mode solo, dans l'ordre des modèles
+    // déclarés par addplayermodel (monster/rat, monster/slith, monster/bauul, monster/hellpig)
+    static const int pfmonsterpain[4] = { S_PAINE, S_PAINS, S_PAINB, S_PAINP };
+    static const int pfmonsterdeath[4] = { S_DEATHE, S_DEATHS, S_DEATHB, S_PIGGR2 };
+
     void damaged(int damage, fpsent *d, fpsent *actor, bool local)
     {
         if((d->state!=CS_ALIVE && d->state != CS_LAGGED && d->state != CS_SPAWNING) || intermission) return;
@@ -449,7 +456,7 @@ namespace game
 
         if(d->health<=0) { if(local) killed(d, actor); }
         else if(d==h) playsound(S_PAIN6);
-        else if(d->aitype != AI_NONE) playsound(S_PAINR + 2*(d->playermodel%3), &d->o); // PORTFOLIO : cri du monstre (virus, bug, glitch)
+        else if(d->aitype != AI_NONE) playsound(pfmonsterpain[d->playermodel%4], &d->o); // PORTFOLIO : cri d'origine du monstre
         else playsound(S_PAIN1+rnd(5), &d->o);
     }
 
@@ -479,7 +486,7 @@ namespace game
             d->move = d->strafe = 0;
             d->resetinterp();
             d->smoothmillis = 0;
-            playsound(d->aitype != AI_NONE ? S_DEATHR + 2*(d->playermodel%3) : S_DIE1+rnd(2), &d->o); // PORTFOLIO
+            playsound(d->aitype != AI_NONE ? pfmonsterdeath[d->playermodel%4] : S_DIE1+rnd(2), &d->o); // PORTFOLIO
 
         }
     }

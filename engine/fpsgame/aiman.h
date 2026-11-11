@@ -2,6 +2,22 @@
 namespace aiman
 {
     bool dorefresh = false, botbalance = true;
+    // PORTFOLIO : paramètres du prochain monstre créé (vagues, boss)
+    int pfnextgroup = 0, pfnexttype = -1;
+    const char *pfnextname = NULL;
+    bool pfnextboss = false;
+
+    static void pfsetup(clientinfo *ci, int cn)
+    {
+        static const char * const pfnames[] = { "Virus", "Bug", "Glitch", "Malware", "Spam", "Troyen", "Ver", "Phishing" };
+        ci->pfgroup = pfnextgroup;
+        ci->pfboss = pfnextboss;
+        // playermodel = type de monstre (0-3) + 4 x groupe : le client en déduit le
+        // modèle, les cris et le point d'apparition (fps.cpp, render.cpp)
+        ci->playermodel = (pfnexttype >= 0 ? pfnexttype : cn%4) + 4*pfnextgroup;
+        copystring(ci->name, pfnextname ? pfnextname : pfnames[cn%(sizeof(pfnames)/sizeof(pfnames[0]))], MAXNAMELEN+1);
+        ci->state.deaths = 0;
+    }
     VARN(serverbotlimit, botlimit, 0, 8, MAXBOTS);
     VAR(serverbotbalance, 0, 1, 1);
 
@@ -100,6 +116,7 @@ namespace aiman
                 ci->ownernum = owner ? owner->clientnum : -1;
                 if(owner) owner->bots.add(ci);
                 ci->aireinit = 2;
+                pfsetup(ci, cn);
                 dorefresh = true;
                 return true;
             }
@@ -116,12 +133,10 @@ namespace aiman
         ci->state.skill = skill <= 0 ? rnd(50) + 51 : clamp(skill, 1, 101);
 	    clients.add(ci);
 		ci->state.lasttimeplayed = lastmillis;
-        // PORTFOLIO : les bots sont les « monstres » de la visite (bugs informatiques)
-        static const char * const pfnames[] = { "Virus", "Bug", "Glitch", "Malware", "Spam", "Troyen", "Ver", "Phishing" };
-		copystring(ci->name, pfnames[cn%(sizeof(pfnames)/sizeof(pfnames[0]))], MAXNAMELEN+1);
+		copystring(ci->name, "bot", MAXNAMELEN+1);
 		ci->state.state = CS_DEAD;
         copystring(ci->team, team, MAXTEAMLEN+1);
-        ci->playermodel = cn; // PORTFOLIO : type de monstre (modèle, cris)
+        pfsetup(ci, cn); // PORTFOLIO : nom, type et groupe du monstre
 		ci->aireinit = 2;
 		ci->connected = true;
         dorefresh = true;
@@ -224,9 +239,9 @@ namespace aiman
         if(m_botmode && numclients(-1, false, true) && findaiclient())
         {
             int numai = 0;
-            loopv(bots) if(bots[i] && bots[i]->ownernum >= 0) numai++;
+            loopv(bots) if(bots[i] && bots[i]->ownernum >= 0 && !bots[i]->pfgroup) numai++;
             while(numai < pfmonsters && addai(pfmonsterskill, -1)) numai++;
-            while(numai > pfmonsters && deleteai()) numai--;
+            loopvrev(bots) if(numai > pfmonsters && bots[i] && bots[i]->ownernum >= 0 && !bots[i]->pfgroup) { deleteai(bots[i]); numai--; }
         }
         if(!dorefresh) return;
         dorefresh = false;

@@ -50,6 +50,7 @@
     // Crochets appelés par le moteur (hérités de BananaBread / Sour)
     autoexec: function () {
       ready = true;
+      exec('exec "data/portfolio.cfg"');
       exec('name "' + playerName + '"');
       exec('pfconnect = [connect cube2 28785]');
     },
@@ -61,10 +62,13 @@
     },
     onGameReady: function () { loading.className = 'done'; resize(); },
     onConnect: noop, onDisconnect: noop, onLocalDisconnect: noop, postLoadWorld: noop,
-    interop: function () { return 0; },
-    assets: { missingTexture: function (n) { console.warn('texture manquante : ' + n); },
-              missingModel: function (n) { console.warn('modèle manquant : ' + n); },
-              missingSound: function (n) { console.warn('son manquant : ' + n); }, onConnect: noop,
+    // `js "..."` côté cubescript : seul l'enchaînement des musiques est autorisé.
+    interop: function (cmd) { if (cmd === 'nextmusic') nextMusic(); return 0; },
+    // Fichiers introuvables : seuls les échecs signalés par le moteur (msg != 0) comptent,
+    // les essais silencieux de variantes (.jpg puis .png, masques facultatifs...) sont ignorés.
+    assets: { missingTexture: function (n, msg) { if (msg) console.warn('texture manquante : ' + n); },
+              missingModel: function (n, msg) { if (msg) console.warn('modèle manquant : ' + n); },
+              missingSound: function (n, msg) { if (msg) console.warn('son manquant : ' + n); }, onConnect: noop,
               loadWorld: noop, receiveMap: noop, loadRandomMap: noop },
     cluster: { receive: function () { return 0; }, send: noop, connect: noop, disconnect: noop, createGame: noop },
     gameState: { playerState: noop },
@@ -91,23 +95,59 @@
     else setTiming(1, 1);                   // EM_TIMING_RAF
   });
 
+  // Musiques libres de droit (CC0, voir CREDITS.md) : téléchargées seulement au
+  // premier geste de l'utilisateur, puis jouées en boucle via la commande `music` du jeu.
+  var MUSIC = ['stage1.ogg', 'stage2.ogg', 'stageselect.ogg'];
+  var musicIndex = -1, musicStarted = false;
+  function nextMusic() {
+    if (!ready) return;
+    musicIndex = (musicIndex + 1) % MUSIC.length;
+    var name = MUSIC[musicIndex];
+    var target = '/packages/music/' + name;
+    var play = function () { exec('music "music/' + name + '" [js nextmusic]'); };
+    try { if (Module.FS.analyzePath(target).exists) return play(); } catch (e) {}
+    fetch(basePath + 'music/' + name).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.arrayBuffer();
+    }).then(function (buf) {
+      Module.FS.mkdirTree('/packages/music');
+      Module.FS.writeFile(target, new Uint8Array(buf));
+      console.log('musique chargée : ' + name + ' (' + buf.byteLength + ' octets)');
+      play();
+    }).catch(function (e) { console.warn('musique indisponible : ' + name + ' ' + e); });
+  }
+  function startMusic() {
+    if (musicStarted || !ready) return;
+    musicStarted = true;
+    nextMusic();
+  }
+
   function resumeAudio() {
     var ctx = Module.SDL2 && Module.SDL2.audioContext;
     if (ctx && ctx.state === 'suspended') ctx.resume();
+    startMusic();
   }
 
-  // Capture de la souris : uniquement sur un clic dans le canvas.
+  // Capture de la souris : uniquement sur un clic dans le canvas. Le jeu ne passe en
+  // mode « souris capturée » qu'une fois le pointer lock réellement obtenu (sinon la
+  // vue dériverait en suivant le curseur), et le relâche dès qu'il est perdu (Échap).
   canvas.addEventListener('mousedown', function () {
     canvas.focus();
     resumeAudio();
     if (!ready || document.pointerLockElement === canvas) return;
-    if (canvas.requestPointerLock) { try { canvas.requestPointerLock(); } catch (e) {} }
-    call('pf_grab', ['number'], [1]);
+    if (canvas.requestPointerLock) {
+      try {
+        var p = canvas.requestPointerLock({ unadjustedMovement: true });
+        if (p && p.catch) p.catch(function () { try { canvas.requestPointerLock(); } catch (e) {} });
+      } catch (e) { try { canvas.requestPointerLock(); } catch (e2) {} }
+    }
   });
   document.addEventListener('keydown', resumeAudio);
-  // Pointer lock perdu (Échap, changement d'onglet...) : le jeu relâche la souris.
   document.addEventListener('pointerlockchange', function () {
-    if (document.pointerLockElement !== canvas) call('pf_grab', ['number'], [0]);
+    call('pf_grab', ['number'], [document.pointerLockElement === canvas ? 1 : 0]);
+  });
+  document.addEventListener('pointerlockerror', function () {
+    console.warn('pointer lock refusé (iframe sans allow="pointer-lock" ?)');
   });
   window.addEventListener('blur', function () { call('pf_grab', ['number'], [0]); });
   // Flèches / Tab ne doivent pas faire défiler la page ni sortir de l'iframe.

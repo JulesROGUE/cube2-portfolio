@@ -1,0 +1,10 @@
+{
+  "name": "cube2-portfolio-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Serveur web du client Cube 2 portfolio : fichiers statiques sous /cube2/ et pont WebSocket <-> UDP vers le serveur dédié",
+  "main": "relay.js",
+  "license": "MIT",
+  "scripts": { "start": "node relay.js" },
+  "dependencies": { "ws": "8.18.3" }
+}

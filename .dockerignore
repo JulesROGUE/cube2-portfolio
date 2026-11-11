@@ -1,0 +1,6 @@
+.git
+build
+dist
+engine/build
+**/node_modules
+*.log

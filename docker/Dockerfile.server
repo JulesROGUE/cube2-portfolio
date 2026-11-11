@@ -1,0 +1,16 @@
+# Serveur dédié Cube 2 (natif, UDP 28785) compilé depuis le même code que le client.
+FROM debian:bookworm-slim AS build
+RUN apt-get update && apt-get install -y --no-install-recommends g++ make zlib1g-dev && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY engine/ ./engine/
+RUN make -C engine server -j"$(nproc)"
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends zlib1g && rm -rf /var/lib/apt/lists/* \
+ && useradd -r -u 10001 -d /srv/cube2 cube2
+WORKDIR /srv/cube2
+COPY --from=build /src/engine/build/cube2_server /usr/local/bin/cube2_server
+COPY docker/server-init.cfg ./server-init.cfg
+USER cube2
+EXPOSE 28785/udp 28786/udp
+CMD ["cube2_server"]

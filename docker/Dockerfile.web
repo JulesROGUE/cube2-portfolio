@@ -1,0 +1,29 @@
+# Conteneur web : client WebAssembly (compilé ici avec Emscripten) + pont WebSocket <-> UDP.
+ARG EMSDK_VERSION=6.0.6
+
+FROM emscripten/emsdk:${EMSDK_VERSION} AS wasm
+RUN apt-get update && apt-get install -y --no-install-recommends python3-pil fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+# 1) le moteur seul (couche mise en cache tant que engine/ ne change pas)
+COPY engine/ ./engine/
+RUN make -C engine web -j"$(nproc)" WEB_OUT=/src/dist/cube2
+# 2) données, carte, coquille web
+COPY game/ ./game/
+COPY tools/ ./tools/
+COPY web/ ./web/
+COPY scripts/ ./scripts/
+RUN JOBS="$(nproc)" ./scripts/build-web.sh \
+ && cd dist/cube2 && for f in *.wasm *.data *.js *.html *.css; do gzip -9 -k "$f"; done
+
+FROM node:22-alpine
+WORKDIR /app
+COPY server/package.json server/package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+COPY server/relay.js ./
+COPY --from=wasm /src/dist/cube2/ ./public/
+ENV PORT=8080 PREFIX=/cube2 CUBE2_SERVER_HOST=cube2-server CUBE2_SERVER_PORT=28785
+USER node
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://127.0.0.1:8080/cube2/health || exit 1
+CMD ["node", "relay.js"]

@@ -1,0 +1,35 @@
+# Visite du portfolio en Cube 2 (WebAssembly) — multijoueur
+#   docker compose up -d --build
+# Seul le conteneur web est exposé (127.0.0.1:8083) : client sous /cube2/,
+# WebSocket du jeu sous /cube2/ws. Le serveur dédié reste sur le réseau interne.
+name: cube2-portfolio
+
+services:
+  cube2-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+    image: cube2-portfolio-server:latest
+    container_name: cube2-portfolio-server
+    restart: unless-stopped
+    networks: [cube2net]
+
+  cube2-portfolio:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    image: cube2-portfolio-web:latest
+    container_name: cube2-portfolio
+    restart: unless-stopped
+    depends_on: [cube2-server]
+    environment:
+      CUBE2_SERVER_HOST: cube2-server
+      CUBE2_SERVER_PORT: "28785"
+      MAX_CLIENTS: "64"
+    ports:
+      - "127.0.0.1:8083:8080"
+    networks: [cube2net]
+
+networks:
+  cube2net:
+    driver: bridge

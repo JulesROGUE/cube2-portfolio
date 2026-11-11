@@ -218,6 +218,19 @@ namespace portfolio
                     e->ownernum, game::player1->clientnum, e->ai ? 1 : 0, e->ai ? e->ai->getstate().type : -1, ai::waypoints.length());
         }
     });
+    // pfplayers : joueurs humains vus par ce client, avec leur apparence (tests)
+    ICOMMAND(pfplayers, "", (),
+    {
+        loopv(game::players)
+        {
+            fpsent *e = game::players[i];
+            if(e->aitype != AI_NONE || e == game::player1) continue;
+            conoutf("joueur %d %s apparence %d", e->clientnum, e->name, e->playermodel);
+        }
+    });
+    // pfrawname : envoie N_SWITCHNAME sans passer par `name` (simule un client modifié,
+    // pour vérifier que le serveur ignore tout changement de pseudo)
+    ICOMMAND(pfrawname, "s", (char *s), game::addmsg(N_SWITCHNAME, "rs", s));
     // pflookat x y z : oriente la vue vers un point (tests automatisés)
     ICOMMAND(pflookat, "fff", (float *x, float *y, float *z),
     {

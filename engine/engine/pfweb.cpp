@@ -30,6 +30,19 @@ extern "C" EMSCRIPTEN_KEEPALIVE void pf_mousemove(int dx, int dy)
     pfmousedy += dy;
 }
 
+// Curseur natif (souris libre) : position absolue en fractions du canvas.
+extern void pf_setcursor(float x, float y);
+extern "C" EMSCRIPTEN_KEEPALIVE void pf_mousepos(float x, float y)
+{
+    pf_setcursor(x, y);
+}
+
+// 1 si un menu est ouvert et attend la souris (les clics lui reviennent).
+extern "C" EMSCRIPTEN_KEEPALIVE int pf_guiopen()
+{
+    return g3d_windowhit(true, false) ? 1 : 0;
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE void pf_resize(int w, int h)
 {
     defformatstring(cmd, "screenres %d %d", w, h);

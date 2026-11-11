@@ -45,7 +45,7 @@ SERVER_SRCS = \
 WEB_OBJS = $(addprefix $(BUILD)/web/,$(CLIENT_SRCS:.cpp=.o)) $(addprefix $(BUILD)/web/enet/,$(ENET_SRCS:.c=.o))
 SRV_OBJS = $(addprefix $(BUILD)/server/,$(SERVER_SRCS:.cpp=.o)) $(addprefix $(BUILD)/server/enet/,$(ENET_SRCS:.c=.o))
 
-EXPORTS = "['_main','_malloc','_free','_pf_execute','_pf_resize','_pf_grab','_pf_getyaw','_pf_getpitch','_pf_mousemove']"
+EXPORTS = "['_main','_malloc','_free','_pf_execute','_pf_resize','_pf_grab','_pf_getyaw','_pf_getpitch','_pf_mousemove','_pf_mousepos','_pf_guiopen']"
 RUNTIME = "['ccall','cwrap','UTF8ToString','FS','ENV','callMain']"
 
 WEB_LDFLAGS = $(WEB_OPT) $(WEB_PORTS) \

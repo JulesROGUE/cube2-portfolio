@@ -82,9 +82,19 @@ Les licences de chaque asset et les crédits musicaux sont détaillés dans **[C
 
 ## Caméra et contrôles (navigateur)
 
-- La souris n'est capturée qu'après un vrai pointer lock, demandé au clic dans le canvas
-  (mouvement « ajusté » par le système, comme le curseur). Elle n'est jamais capturée sur un
-  simple focus de l'iframe, et elle est relâchée à `Échap` ou à la perte du pointer lock.
+- **En jeu**, la souris est capturée (pointer lock, demandé au clic dans le canvas, jamais
+  sur un simple focus de l'iframe). **Dans les menus**, elle est libre : le curseur est
+  celui du système (CSS `cursor`), le moteur ne dessine plus le sien, et sa position
+  absolue est transmise au jeu (`pf_mousepos`, en fractions du canvas, donc juste quelle que
+  soit la taille de l'iframe, le plein écran ou `devicePixelRatio`).
+- **Un seul Échap** : le navigateur réserve le premier Échap à la sortie du pointer lock ;
+  toute perte de capture non demandée (Échap, alt-tab, perte de focus) ouvre donc
+  directement le menu principal. Un menu ouvert en jeu libère la souris ; quand tous les
+  menus se ferment (bouton « Reprendre la visite »), la capture reprend ; sinon un clic
+  dans le jeu la reprend (« Clique pour reprendre la visite »).
+- `?rawmouse=1` demande `unadjustedMovement` (mouvement brut), avec repli automatique sur
+  le pointer lock classique si le navigateur refuse. Le mode relatif de SDL n'est plus
+  utilisé (il demandait et relâchait le pointer lock de son côté).
 - Les mouvements viennent directement des événements `pointermove` (y compris les événements
   regroupés par le navigateur, `getCoalescedEvents`) : la coquille web les transmet au jeu
   (`pf_mousemove`), qui les cumule et les applique une seule fois par image, pour la vue comme
@@ -95,6 +105,14 @@ Les licences de chaque asset et les crédits musicaux sont détaillés dans **[C
 - Les réglages d'origine (`sensitivity`, `fov`, `invmouse`…) sont conservés, avec leurs
   valeurs par défaut. La résolution
   suit la taille de l'iframe et le plein écran, ce qui évite l'étirement de l'image.
+
+Menu principal (Échap), minimal : *Reprendre la visite*, *Apparence* (choix du modèle de
+joueur, mémorisé dans le navigateur et vu des autres joueurs), *Plein écran* (aussi touche
+`F`), *Options*, *À propos*, *Quitter le jeu* (confirmation, déconnexion, puis
+`postMessage({ type: 'cube2:quit' })` à la page parente, ou retour à `/` sans parent). Le
+navigateur de serveurs, le vote de mode/carte, *master* et *disconnect* ont été retirés.
+Le pseudo est celui de la session du portfolio (`?name=`) : `/name` est refusé et le
+serveur ignore tout changement de nom après la connexion.
 
 Clavier AZERTY : `Z` `Q` `S` `D` pour se déplacer (les flèches restent actives), souris, `Espace`/clic droit (saut), clic (tir), `1`–`6`
 et la molette (armes), `T` (chat), `Tab` (scores), `Échap` (menu). Le jeu reçoit le

@@ -5,3 +5,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
   font: 13px monospace; color: #9ab;
 }
 #loading.done { display: none; }
+#hint {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  padding: 8px 14px; border-radius: 4px; background: rgba(0, 0, 0, .6);
+  font: 14px sans-serif; color: #fff; pointer-events: none; display: none;
+}
+#hint.on { display: block; }

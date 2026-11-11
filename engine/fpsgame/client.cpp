@@ -388,9 +388,18 @@ namespace game
     {
         conoutf("your name is: %s", colorname(player1));
     }
+    // PORTFOLIO : le pseudo est celui de la session du portfolio (?name=), fixé une
+    // seule fois par la coquille web (pfsetname) ; `name` / `/name` ne le change plus.
+    static bool pfnameset = false;
+    ICOMMAND(pfsetname, "s", (char *s),
+    {
+        if(pfnameset) return;
+        pfnameset = true;
+        switchname(s);
+    });
     ICOMMAND(name, "sN", (char *s, int *numargs),
     {
-        if(*numargs > 0) switchname(s);
+        if(*numargs > 0) { if(pfnameset) conoutf(CON_ERROR, "\f3le pseudo est celui de ta session du portfolio"); }
         else if(!*numargs) printname();
         else result(colorname(player1));
     });

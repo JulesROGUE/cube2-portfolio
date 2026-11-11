@@ -38,6 +38,10 @@ packages/skyboxes/remus/
 
 # --- Joueur (Mr. Fixit), armes à la 1re personne, armes en main, objets ---------------
 packages/models/mrfixit/
+# Apparences des visiteurs (sans leurs armes à la 1re personne : celles de Mr. Fixit servent)
+packages/models/snoutx10k/[!h]*
+packages/models/inky/[!h]*
+packages/models/captaincannon/[!h]*
 packages/models/hudguns/
 packages/models/vwep/
 packages/models/ammo/

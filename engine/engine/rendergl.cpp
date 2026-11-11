@@ -2160,6 +2160,12 @@ void drawcrosshair(int w, int h)
     vec color(1, 1, 1);
     float cx = 0.5f, cy = 0.5f, chsize;
     Texture *crosshair;
+#if __EMSCRIPTEN__
+    // PORTFOLIO : souris libre dans les menus -> curseur natif du système, pas de
+    // curseur dessiné (il n'avançait qu'au rythme des images).
+    extern bool grabinput;
+    if(windowhit && !grabinput) return;
+#endif
     if(windowhit)
     {
         static Texture *cursor = NULL;

@@ -3340,17 +3340,15 @@ namespace server
 
             case N_SWITCHNAME:
             {
-                QUEUE_MSG;
+                // PORTFOLIO : le pseudo est fixé à la connexion (celui de la session du
+                // portfolio) ; tout changement ultérieur est ignoré, même d'un client modifié.
                 getstring(text, p);
-                filtertext(ci->name, text, false, false, MAXNAMELEN);
-                if(!ci->name[0]) copystring(ci->name, "unnamed");
-                QUEUE_STR(ci->name);
                 break;
             }
 
             case N_SWITCHMODEL:
             {
-                ci->playermodel = getint(p);
+                ci->playermodel = clamp(getint(p), 0, 3); // PORTFOLIO : apparences de visiteur seulement
                 QUEUE_MSG;
                 break;
             }

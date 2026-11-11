@@ -480,6 +480,13 @@ int pfskipmotion = 0;
 void inputgrab(bool on, bool delay = false)
 {
     if(on) pfskipmotion = 2;
+#ifdef __EMSCRIPTEN__
+    // PORTFOLIO : dans le navigateur, la coquille web gère seule le pointer lock et le
+    // curseur (natif dans les menus). Le mode relatif de SDL demandait/relâchait aussi
+    // le pointer lock de son côté (requêtes différées), d'où des captures parasites.
+    shouldgrab = delay;
+    return;
+#endif
 #ifdef SDL_VIDEO_DRIVER_X11
     bool wasrelativemouse = relativemouse;
 #endif
@@ -947,9 +954,17 @@ static void checkmousemotion(int &dx, int &dy)
     }
 }
 
+#ifdef __EMSCRIPTEN__
+static bool pfleftdownframe = false, pfpendingleftup = false;
+#endif
+
 void checkinput()
 {
     if(interceptkeysym) clearinterceptkey();
+#ifdef __EMSCRIPTEN__
+    pfleftdownframe = false;
+    if(pfpendingleftup) { pfpendingleftup = false; processkey(-1, false); }
+#endif
     //int lasttype = 0, lastbut = 0;
     bool mousemoved = false;
     int focused = 0;
@@ -962,7 +977,8 @@ void checkinput()
         // un simple gain de focus : seulement sur un clic dans le canvas (voir
         // SDL_MOUSEBUTTONDOWN ci-dessous et pf_grab() appelé par la coquille web).
         // Une perte de focus relâche la capture.
-        if(focused < 0 && grabinput) inputgrab(grabinput = false);
+        // La capture suit uniquement l'état du pointer lock (pf_grab) : un focus perdu
+        // le fait perdre côté navigateur, et pointerlockchange prévient le jeu.
         focused = 0;
 #else
         if(focused && event.type!=SDL_WINDOWEVENT) { if(grabinput != (focused>0)) inputgrab(grabinput = focused>0, shouldgrab); focused = 0; }
@@ -1063,7 +1079,18 @@ void checkinput()
             case SDL_MOUSEBUTTONDOWN:
             case SDL_MOUSEBUTTONUP:
 #ifdef __EMSCRIPTEN__
-                if(!grabinput) break; // clic de capture : la coquille web gère le pointer lock
+                // Souris libre : les clics ne vont qu'aux menus (curseur natif, position
+                // absolue fournie par pf_mousepos) ; hors menu, la coquille web reprend la capture.
+                if(!grabinput && !g3d_windowhit(true, false)) break;
+#endif
+#ifdef __EMSCRIPTEN__
+                // Clic très bref (appui et relâchement dans la même image) : le relâchement est
+                // rejoué à l'image suivante, sinon les menus ne voient pas le clic.
+                if(event.button.button == SDL_BUTTON_LEFT)
+                {
+                    if(event.button.state == SDL_PRESSED) pfleftdownframe = true;
+                    else if(pfleftdownframe) { pfpendingleftup = true; break; }
+                }
 #endif
                 //if(lasttype==event.type && lastbut==event.button.button) break; // why?? get event twice without it
                 switch(event.button.button)
@@ -1090,18 +1117,22 @@ void checkinput()
         }
     }
 #ifdef __EMSCRIPTEN__
-    if(focused < 0 && grabinput) inputgrab(grabinput = false);
+    // PORTFOLIO : un menu s'ouvre pendant que la souris est capturée -> on libère le
+    // pointer lock (curseur natif) ; tous les menus se ferment -> on reprend la capture.
+    {
+        static bool pfwasmenu = false;
+        bool menu = g3d_windowhit(true, false);
+        if(grabinput && menu) EM_ASM({ if (Module.pfUnlock) Module.pfUnlock(); });
+        else if(!grabinput && pfwasmenu && !menu) EM_ASM({ if (Module.pfLock) Module.pfLock(); });
+        pfwasmenu = menu;
+    }
     // PORTFOLIO : mouvements de souris de l'image, cumulés côté JavaScript
     extern int pfmousedx, pfmousedy;
     if(pfmousedx || pfmousedy)
     {
         int dx = pfmousedx, dy = pfmousedy;
         pfmousedx = pfmousedy = 0;
-        // Le pointer lock est actif (seule condition d'envoi côté JS) : si une perte de
-        // focus parasite (clic dans la page parente de l'iframe) a relâché la capture
-        // côté jeu, on la rétablit au lieu de figer la vue.
-        if(!grabinput) { inputgrab(grabinput = true); pfskipmotion = 0; }
-        if(pfskipmotion <= 0 && abs(dx) < 4000 && abs(dy) < 4000)
+        if(grabinput && pfskipmotion <= 0 && abs(dx) < 4000 && abs(dy) < 4000)
         {
             if(!g3d_movecursor(dx, dy)) mousemove(dx, dy);
             mousemoved = true;

@@ -31,6 +31,8 @@ convertis en JPEG, reflets d'environnement (envmap) retirés des `.cfg` des mod�
 | `data/` : scripts d'origine (menus, touches, shaders `glsl.cfg`, sons…) et images d'interface | Équipe Sauerbraten | zlib (licence du jeu) ; `guioverlay`, `guiskin`, `guislider` : CC BY-NC-SA, Markus « makkE » Bekel (`data/license.txt`) |
 | `packages/fonts`, `packages/hud`, `packages/icons`, `packages/crosshairs`, `packages/blendbrush`, `packages/particles`, `packages/textures` (notexture, ciel) | Équipe Sauerbraten ; police DejaVu (Bitstream Vera / domaine public) ; icônes de `blip_*` dérivées de Glyphish (CC BY 3.0) | licence du jeu / licences indiquées dans les dossiers |
 | Joueur Mr. Fixit (`models/mrfixit`), armes à la 1re personne (`models/hudguns`), armes en main (`models/vwep`) | John « geartrooper » Siar, Anthony « Acord » Cord, Nieb | CC BY-NC 3.0 |
+| Apparences IronSnout X10K (`models/snoutx10k`) | John « geartrooper » Siar | CC BY 3.0 (`license.txt`) |
+| Apparences Inky (`models/inky`) et Captain Cannon (`models/captaincannon`) | John « geartrooper » Siar | CC BY-NC 3.0 (`license.txt`) |
 | Objets : munitions, santé, armure, boost, quad, projectiles, débris, téléporteur | Équipe Sauerbraten / makkE | CC BY-NC-SA (`models/ammo/license.txt`…) |
 | Monstres : rat (Ratamahatta), slith, bauul, hellpig | Auteurs Quake II indiqués dans chaque readme (rat/bauul : non commercial, crédit ; hellpig : libre avec crédit ; slith : libre redistribution) | readme de chaque dossier |
 | Décors `models/dcp` (plantes, bancs, consoles, tonneaux, piliers, arbres, réverbères…) | Dietmar « dcp » Pier | libre pour les cartes Cube (`Readme.txt`) |
@@ -46,6 +48,9 @@ convertis en JPEG, reflets d'environnement (envmap) retirés des `.cfg` des mod�
 | Ambiances (`sounds/ambience`) | Bahutan, Slanesh, Therac 25, RHumphries, dobroide, acclivity, oyes, ignotus, fresco, WIM (freesound) | CC Sampling+ 1.0 (`authors.txt`) |
 | Ambiances `sounds/razgriz` (energy_hum_01, high_wind_01) | Sllarson (CC BY), ERR0 (CC0) via freesound | voir `license.txt` |
 | Ambiance `sounds/akari/stadiumsound` | — | libre (voir `README.txt`) |
+
+Le modèle Ogro (`models/ogro2`), dérivé d'un modèle Quake II sans licence de redistribution
+explicite, n'est pas repris.
 
 ## Assets maison (aucun équivalent dans le jeu de base)
 

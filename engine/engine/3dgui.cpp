@@ -1276,6 +1276,13 @@ bool g3d_movecursor(int dx, int dy)
 }
 
 #if __EMSCRIPTEN__
+// PORTFOLIO : position absolue du curseur natif (fractions de la taille du canvas)
+void pf_setcursor(float x, float y)
+{
+    cursorx = max(0.0f, min(1.0f, x));
+    cursory = max(0.0f, min(1.0f, y));
+}
+
 void g3d_click(float x, float y)
 {
     if(!guis2d.length() || !hascursor) return;

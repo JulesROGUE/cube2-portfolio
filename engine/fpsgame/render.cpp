@@ -1,4 +1,7 @@
 #include "game.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 struct spawninfo { const extentity *e; float weight; };
 extern float gatherspawninfos(dynent *d, int tag, vector<spawninfo> &spawninfos);
@@ -11,7 +14,7 @@ namespace game
     VARP(ragdoll, 0, 1, 1);
     VARP(ragdollmillis, 0, 10000, 300000);
     VARP(ragdollfade, 0, 1000, 300000);
-    VARFP(playermodel, 0, 0, 4, changedplayermodel());
+    VARFP(playermodel, 0, 0, 3, changedplayermodel());
     VARP(forceplayermodels, 0, 0, 1);
     VARP(hidedead, 0, 0, 2);
 
@@ -104,17 +107,25 @@ namespace game
 
     const playermodelinfo &getplayermodelinfo(fpsent *d)
     {
-        // PORTFOLIO : modèle 0 = visiteur, modèles 1..n = monstres (bots)
-        if(d->aitype != AI_NONE && numplayermodels > 1)
-            return playermodels[1 + (d->playermodel%4)%(numplayermodels-1)];
-        const playermodelinfo *mdl = getplayermodelinfo(d==player1 || forceplayermodels ? playermodel : 0);
-        if(!mdl) mdl = getplayermodelinfo(playermodel);
-        return *mdl;
+        // PORTFOLIO : modèles 0..n-5 = apparences des visiteurs, 4 derniers = monstres (bots)
+        int humans = max(1, numplayermodels - 4);
+        if(d->aitype != AI_NONE && numplayermodels > humans)
+            return playermodels[humans + (d->playermodel%4)];
+        int n = d==player1 || forceplayermodels ? playermodel : d->playermodel;
+        if(n < 0 || n >= humans) n = 0;
+        return playermodels[n];
     }
 
     void changedplayermodel()
     {
         if(player1->clientnum < 0) player1->playermodel = playermodel;
+        // PORTFOLIO : changement d'apparence appliqué et envoyé tout de suite (pas
+        // seulement au prochain chargement de carte), donc vu des autres joueurs
+        else if(player1->playermodel != playermodel) switchplayermodel(playermodel);
+#ifdef __EMSCRIPTEN__
+        // PORTFOLIO : la coquille web mémorise l'apparence choisie (localStorage)
+        EM_ASM({ if (Module.pfSkin) Module.pfSkin($0); }, playermodel);
+#endif
         if(player1->ragdoll) cleanragdoll(player1);
         loopv(ragdolls) 
         {

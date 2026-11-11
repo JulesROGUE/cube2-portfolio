@@ -1,0 +1,11 @@
+# Artefacts de build (reconstruits par scripts/build-web.sh / docker)
+build/
+dist/
+engine/build/
+node_modules/
+*.o
+*.gz
+*.log
+# Sources tierces éventuellement téléchargées hors du dépôt
+third_party/
+__pycache__/

@@ -34,8 +34,9 @@ convertis en JPEG, reflets d'environnement (envmap) retirés des `.cfg` des mod�
 | Objets : munitions, santé, armure, boost, quad, projectiles, débris, téléporteur | Équipe Sauerbraten / makkE | CC BY-NC-SA (`models/ammo/license.txt`…) |
 | Monstres : rat (Ratamahatta), slith, bauul, hellpig | Auteurs Quake II indiqués dans chaque readme (rat/bauul : non commercial, crédit ; hellpig : libre avec crédit ; slith : libre redistribution) | readme de chaque dossier |
 | Décors `models/dcp` (plantes, bancs, consoles, tonneaux, piliers, arbres, réverbères…) | Dietmar « dcp » Pier | libre pour les cartes Cube (`Readme.txt`) |
-| Décors `models/objects` (table, chaise, lampe, panneau, wagonnet, lanterne) | makkE, Kurtis Kesler | CC BY-NC-SA 2.5 |
-| Décors `models/makke/planet`, `moon` | Markus « makkE » Bekel | CC BY-NC-SA |
+| Décors `models/objects` (table, chaise, lampe, panneau, wagonnet, lanterne, puits, banc) | makkE, Kurtis Kesler | CC BY-NC-SA 2.5 |
+| Eau : `golgotha/water2` | Jeu Golgotha (art versé au domaine public, readme fourni) | libre usage non commercial |
+| Eau : `textures/water*`, `waterfall*`, reflets `caustics` | Équipe Sauerbraten | licence du jeu |
 | Décor `models/aftas/caixa` | Jésus « aftasardem » Maia | libre pour les cartes Sauerbraten/Cube |
 | Textures `ik2k`, `ikbase` | Iikka Keränen | distribution libre non commerciale, crédit |
 | Textures `tech1soc` | Sock | crédit demandé (readme fourni) |

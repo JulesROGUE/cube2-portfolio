@@ -68,6 +68,11 @@ TEX = {
     "ext_brick": "ik2k/ik_brickwall_gry.jpg",
     "ext_conc": "ikbase/ik_cwall04a.jpg",
     "ceiling": "ikbase/ik_floor_conc128b.jpg",
+    "plinth": "ik2k/ik_brick_6464a.jpg",
+    "cornice": "ik2k/ik_wood_trimh64d.jpg",
+    "curb": "ik2k/ik_brick_6464a.jpg",
+    "stone": "ik2k/ik_floor_brick128a.jpg",
+    "rooftile": "ik2k/ik_brick_3216d.jpg",
     # salles
     "profil_floor": "ik2k/ik_floor_wood128b.jpg", "profil_wall": "ik2k/ik_wpaperplain128a.jpg",
     "profil_ceil": "ik2k/ik_wood_planks128b.jpg",
@@ -97,6 +102,28 @@ shellof = {}                       # voxel plein de mur/toit -> bâtiment (textu
 blocktex = {}                      # voxel plein -> texture imposée (blocs, cloisons)
 facetex = {}                       # (voxel plein, face) -> texture imposée (panneaux)
 groundtex = {}                     # (x, y) -> texture du sol extérieur
+shape = {}                         # voxel plein -> 12 arêtes Cube 2 (cube partiel : pente, biseau, demi-bloc...)
+material = {}                      # voxel vide -> matériau (eau)
+propblock = set()                  # cellules (x, y) occupées par un décor : pas de point de passage
+MAT_WATER = 1 << 2
+
+
+# Arêtes d'un cube Cube 2 (octa.h) : 3 dimensions x 4 arêtes, octet = (fin << 4) | début, en huitièmes.
+def box_edges(x0=0, x1=8, y0=0, y1=8, z0=0, z1=8):
+    return (((x1 << 4) | x0),) * 4 + (((y1 << 4) | y0),) * 4 + (((z1 << 4) | z0),) * 4
+
+
+def hf_edges(h00, h10, h01, h11):
+    """Champ de hauteur : hauteur (huitièmes) de chacun des 4 coins (x, y) du voxel."""
+    return (0x80,) * 4 + (0x80,) * 4 + tuple((h << 4) for h in (h00, h10, h01, h11))
+
+
+FULL = box_edges()
+
+
+def isopen(v):
+    """Voxel vide ou partiel : ses voisins pleins y montrent une face."""
+    return not solid[v] or v in shape
 
 
 def idx(x, y, z):
@@ -107,6 +134,10 @@ class Room:
     def __init__(self, rid, box, floor, wall, ceil="ceiling", ext="ext_brick", zone=None):
         self.rid, self.box, self.floor, self.wall, self.ceil, self.ext = rid, box, floor, wall, ceil, ext
         self.zone = zone
+        self.doors = []
+
+
+WINDOWS = []   # fenêtres à percer une fois les panneaux posés
 
 
 # Sol plein
@@ -116,6 +147,17 @@ for z in range(FLOOR):
             solid[idx(x, y, z)] = 1
 
 
+def setshape(x, y, z, edges, tex):
+    v = idx(x, y, z)
+    if edges == FULL:
+        shape.pop(v, None)
+    else:
+        shape[v] = edges
+    solid[v] = 1
+    roomof[v] = None
+    blocktex[v] = tex
+
+
 def fill(box, tex=None, shell=None):
     x0, x1, y0, y1, z0, z1 = box
     for z in range(z0, z1):
@@ -123,6 +165,7 @@ def fill(box, tex=None, shell=None):
             for x in range(x0, x1):
                 v = idx(x, y, z)
                 solid[v] = 1
+                shape.pop(v, None)
                 roomof[v] = None
                 if tex:
                     blocktex[v] = tex
@@ -140,6 +183,7 @@ def carve(box, room):
                 roomof[v] = room
                 blocktex.pop(v, None)
                 shellof.pop(v, None)
+                shape.pop(v, None)
 
 
 def paint(x0, x1, y0, y1, tex):
@@ -159,7 +203,26 @@ for y in range(N):
 ROOMS, ROOMBYID = [], {}
 
 
-def building(rid, x0, x1, y0, y1, floor, wall, ceil="ceiling", ext="ext_brick", doors=(), zone=None):
+def pitched_roof(xa, xb, ya, yb, z):
+    """Toit à deux pans au-dessus de la dalle (bornes incluses des murs), faîtage selon x."""
+    k = 0
+    while ya + k <= yb - k:
+        lo, hi, zz = ya + k, yb - k, z + k
+        for x in range(xa, xb + 1):
+            for y in range(lo, hi + 1):
+                if lo == hi:
+                    setshape(x, y, zz, box_edges(z1=4), "rooftile")          # faîtage
+                elif y == lo:
+                    setshape(x, y, zz, hf_edges(0, 0, 8, 8), "rooftile")     # pan qui monte vers +y
+                elif y == hi:
+                    setshape(x, y, zz, hf_edges(8, 8, 0, 0), "rooftile")     # pan qui monte vers -y
+                else:
+                    setshape(x, y, zz, FULL, "rooftile")
+        k += 1
+
+
+def building(rid, x0, x1, y0, y1, floor, wall, ceil="ceiling", ext="ext_brick", doors=(), zone=None, roof="pitched",
+             windows=True):
     """Bâtiment : intérieur [x0,x1)x[y0,y1), murs d'un voxel autour, toit, portes.
     doors : (côté 'n','s','e','w', début, fin) le long du mur."""
     r = Room(rid, (x0, x1, y0, y1, FLOOR, FLOOR + H), floor, wall, ceil, ext, zone)
@@ -167,15 +230,61 @@ def building(rid, x0, x1, y0, y1, floor, wall, ceil="ceiling", ext="ext_brick", 
     ROOMBYID[rid] = r
     fill((x0 - 1, x1 + 1, y0 - 1, y1 + 1, FLOOR, FLOOR + H + 1), shell=r)
     carve(r.box, r)
+    doorcells = set()
     for side, a, b in doors:
         if side == "s":
             carve((a, b, y0 - 1, y0, FLOOR, FLOOR + 2), r)
+            out = [(a - 1, y0 - 2), (b, y0 - 2)]
+            doorcells |= {(x, y0 - 1) for x in range(a - 1, b + 1)}
         elif side == "n":
             carve((a, b, y1, y1 + 1, FLOOR, FLOOR + 2), r)
+            out = [(a - 1, y1 + 1), (b, y1 + 1)]
+            doorcells |= {(x, y1) for x in range(a - 1, b + 1)}
         elif side == "w":
             carve((x0 - 1, x0, a, b, FLOOR, FLOOR + 2), r)
-        elif side == "e":
+            out = [(x0 - 2, a - 1), (x0 - 2, b)]
+            doorcells |= {(x0 - 1, y) for y in range(a - 1, b + 1)}
+        else:
             carve((x1, x1 + 1, a, b, FLOOR, FLOOR + 2), r)
+            out = [(x1 + 1, a - 1), (x1 + 1, b)]
+            doorcells |= {(x1, y) for y in range(a - 1, b + 1)}
+        r.doors.append((side, a, b))
+        for (cx, cy) in out:                              # colonnes de part et d'autre de la porte
+            if not solid[idx(cx, cy, FLOOR)]:
+                for z in range(FLOOR, FLOOR + 2):
+                    setshape(cx, cy, z, box_edges(2, 6, 2, 6), "stone")
+                propblock.add((cx, cy))
+    xa, xb, ya, yb = x0 - 1, x1, y0 - 1, y1
+    if roof == "pitched":
+        if (xb - xa) >= (yb - ya):
+            pitched_roof(xa, xb, ya, yb, FLOOR + H + 1)
+    # corniche en saillie sous le toit
+    zc = FLOOR + H - 1
+    for x in range(xa - 1, xb + 2):
+        for y in range(ya - 1, yb + 2):
+            if xa <= x <= xb and ya <= y <= yb:
+                continue
+            if solid[idx(x, y, zc)]:
+                continue
+            bx0, bx1, by0, by1 = 0, 8, 0, 8
+            if x < xa: bx0 = 5
+            if x > xb: bx1 = 3
+            if y < ya: by0 = 5
+            if y > yb: by1 = 3
+            setshape(x, y, zc, box_edges(bx0, bx1, by0, by1, 4, 8), "cornice")
+    # fenêtres (ouvertures) tous les 3 voxels, hors coins, portes et panneaux
+    if windows:
+        zw = FLOOR + 2
+        cand = [(x, ya) for x in range(xa + 2, xb - 1, 3)] + [(x, yb) for x in range(xa + 2, xb - 1, 3)] + \
+               [(xa, y) for y in range(ya + 2, yb - 1, 3)] + [(xb, y) for y in range(ya + 2, yb - 1, 3)]
+        for (x, y) in cand:
+            if (x, y) in doorcells:
+                continue
+            nb = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+            outside = [c for c in nb if not (x0 <= c[0] < x1 and y0 <= c[1] < y1)]
+            if any(solid[idx(cx, cy, zw)] for (cx, cy) in outside if 0 <= cx < N and 0 <= cy < N):
+                continue
+            WINDOWS.append((x, y, zw, r))
     return r
 
 
@@ -189,7 +298,7 @@ building("certificats", 15, 23, 12, 20, "cert_floor", "cert_wall", "ceiling", "e
 building("contact", 46, 54, 28, 36, "post_floor", "post_wall", "ceiling", "ext_brick",
          doors=[("w", 31, 33)], zone="contact")
 building("galerie", 3, 13, 20, 51, "gal_floor", "gal_wall", "ceiling", "ext_conc",
-         doors=[("e", 30, 32)], zone=None)
+         doors=[("e", 30, 32)], zone=None, roof="flat", windows=False)
 
 # Galerie : 5 stands séparés par des cloisons (de x=3 à x=9), allée côté est
 for y in (26, 32, 38, 44):
@@ -235,14 +344,44 @@ paint(26, 40, 4, 20, "arena_floor")
 for b in ((29, 30, 8, 9), (36, 37, 8, 9), (29, 30, 15, 16), (36, 37, 15, 16)):   # piliers-abris
     fill((b[0], b[1], b[2], b[3], FLOOR, FLOOR + 3), "arena_wall")
 
-# --- Parkour 1 « Les piliers » : piliers de plus en plus hauts (nord-est) -------
-PK1 = [(42, 44, 41, 43, 1), (46, 48, 41, 43, 2), (50, 52, 41, 43, 3), (54, 56, 41, 43, 4),
-       (54, 56, 45, 47, 5), (54, 56, 49, 51, 6), (52, 58, 54, 58, 9)]
+# --- Parkours recalibrés sur la physique réelle (saut mesuré : ~20 u de haut,
+#     ~110 u de long) : marches de 8 u, écarts d'un voxel (32 u), plateformes de 96 u de
+#     profondeur pour absorber la longueur du saut, parcours compacts.
+def platform(x0, x1, y0, y1, height, tex):
+    """Plateforme pleine dont le dessus est à `height` unités au-dessus du sol."""
+    full, rem = divmod(height, VOX)
+    if full:
+        fill((x0, x1, y0, y1, FLOOR, FLOOR + full), tex)
+    if rem:
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                setshape(x, y, FLOOR + full, box_edges(z1=rem // 4), tex)
+
+
+def beam(x0, x1, y, height, tex):
+    """Poutre étroite (16 u de large) selon x, dessus à `height` unités."""
+    full, rem = divmod(height, VOX)
+    for x in range(x0, x1):
+        for z in range(FLOOR, FLOOR + full):
+            setshape(x, y, z, box_edges(0, 8, 2, 6, 0, 8), tex)
+        if rem:
+            setshape(x, y, FLOOR + full, box_edges(0, 8, 2, 6, 0, rem // 4), tex)
+
+
+# Parcours 1 « Les piliers » (nord-est) : 6 marches de 8 u puis la plateforme d'arrivée
+PK1 = [(42, 45, 41, 44, 8), (46, 49, 41, 44, 16), (50, 53, 41, 44, 24), (50, 53, 45, 48, 32),
+       (46, 49, 45, 48, 40), (46, 49, 49, 52, 48)]
+PK1END = (50, 56, 49, 53, 48)
 for (x0, x1, y0, y1, h) in PK1:
-    fill((x0, x1, y0, y1, FLOOR, FLOOR + h), "ext_conc")
-# --- Parkour 2 « Les toits » : jump pad vers le toit de la galerie, toit du Profil,
-#     poutre jusqu'au toit des Compétences
-fill((24, 26, 46, 47, FLOOR + H, FLOOR + H + 1), "roof")      # poutre entre Profil et Compétences
+    platform(x0, x1, y0, y1, h, "ext_conc")
+platform(*PK1END, "stone")
+# Parcours 2 « Les poutres » (sud-ouest) : jump pad -> plateforme haute, poutres, arrivée
+PK2P0 = (4, 7, 9, 13, 80)
+PK2END = (13, 16, 9, 12, 68)
+platform(*PK2P0, "ext_conc")
+beam(7, 10, 10, 80, "cornice")          # poutre 1
+beam(11, 13, 10, 80, "cornice")         # poutre 2 (un voxel de vide entre les deux)
+platform(*PK2END, "stone")
 
 # --- Place centrale (accueil) et chemins -------------------------------------
 PLAZA = (25, 39, 24, 38, FLOOR, FLOOR + 6)
@@ -303,6 +442,90 @@ for name, axis, coord, face, u0, z0 in PANELS:
             facetex[(v, face)] = TEXIDX[name]
 
 
+for (wx, wy, wz, wr) in WINDOWS:
+    v = idx(wx, wy, wz)
+    if any(k[0] == v for k in facetex):
+        continue
+    carve((wx, wx + 1, wy, wy + 1, wz, wz + 1), wr)
+
+# --- Étang (eau du jeu de base) au nord, bordé de pierres -----------------------
+POND = (26, 32, 53, 59)
+for y in range(POND[2], POND[3]):
+    for x in range(POND[0], POND[1]):
+        v = idx(x, y, FLOOR - 1)
+        solid[v] = 0
+        material[v] = MAT_WATER
+        blocktex[idx(x, y, FLOOR - 2)] = "stone"
+        groundtex[(x, y)] = "pond"
+for y in range(POND[2] - 1, POND[3] + 1):
+    for x in range(POND[0] - 1, POND[1] + 1):
+        if not (POND[0] <= x < POND[1] and POND[2] <= y < POND[3]):
+            setshape(x, y, FLOOR, box_edges(z1=2), "curb")
+            groundtex[(x, y)] = "pondedge"
+
+# --- Bordures de chemins (4 u, franchissables sans sauter) ---------------------
+for (x, y), t in list(groundtex.items()):
+    if t not in ("path", "plaza"):
+        continue
+    for (nx, ny) in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+        if (nx, ny) in groundtex or not (2 <= nx < N - 2 and 2 <= ny < N - 2):
+            continue
+        if solid[idx(nx, ny, FLOOR)] or not solid[idx(nx, ny, FLOOR - 1)]:
+            continue
+        setshape(nx, ny, FLOOR, box_edges(z1=1), "curb")
+        groundtex[(nx, ny)] = "curb"
+
+# --- Relief : collines douces (pentes <= 26°, max 32 u) hors lieux aménagés -------
+import math
+flat = [[False] * N for _ in range(N)]
+for y in range(N):
+    for x in range(N):
+        if (x, y) in groundtex or x < 2 or y < 2 or x >= N - 2 or y >= N - 2:
+            flat[y][x] = True
+        elif any(solid[idx(x, y, z)] for z in range(FLOOR, FLOOR + 3)) or not solid[idx(x, y, FLOOR - 1)]:
+            flat[y][x] = True
+# marge de 2 voxels autour des lieux aménagés (sauf la bordure de falaises)
+keep = [[flat[y][x] and 2 <= x < N - 2 and 2 <= y < N - 2 for x in range(N)] for y in range(N)]
+for y in range(N):
+    for x in range(N):
+        if keep[y][x]:
+            for dy in range(-2, 3):
+                for dx in range(-2, 3):
+                    if 0 <= x + dx < N and 0 <= y + dy < N:
+                        flat[y + dy][x + dx] = True
+HC = [[0] * (N + 1) for _ in range(N + 1)]          # hauteurs aux coins (huitièmes de voxel)
+for y in range(N + 1):
+    for x in range(N + 1):
+        cells = [(x - 1, y - 1), (x, y - 1), (x - 1, y), (x, y)]
+        if any(0 <= cx < N and 0 <= cy < N and flat[cy][cx] for (cx, cy) in cells):
+            continue
+        n = 4 + 3 * math.sin(x * 0.45) * math.cos(y * 0.37) + 2 * math.sin((x + y) * 0.23)
+        HC[y][x] = max(0, min(8, int(round(n))))
+for _ in range(10):                                  # pentes douces : écart <= 2 entre coins voisins
+    for y in range(N + 1):
+        for x in range(N + 1):
+            for (nx, ny) in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if 0 <= nx <= N and 0 <= ny <= N:
+                    HC[y][x] = min(HC[y][x], HC[ny][nx] + 2)
+for y in range(N):
+    for x in range(N):
+        h = (HC[y][x], HC[y][x + 1], HC[y + 1][x], HC[y + 1][x + 1])
+        if flat[y][x] or max(h) == 0:
+            continue
+        setshape(x, y, FLOOR, hf_edges(*h), "grass")
+
+
+def terrainh(x, y):
+    """Hauteur du relief (unités) au point (x, y) en voxels."""
+    ix, iy = int(x), int(y)
+    if not (0 <= ix < N and 0 <= iy < N):
+        return 0
+    fx, fy = x - ix, y - iy
+    h = (HC[iy][ix] * (1 - fx) * (1 - fy) + HC[iy][ix + 1] * fx * (1 - fy) +
+         HC[iy + 1][ix] * (1 - fx) * fy + HC[iy + 1][ix + 1] * fx * fy)
+    return h * 4
+
+
 def face_textures(x, y, z):
     """Tuple des 6 textures d'un voxel plein (faces cachées = texture par défaut)."""
     v = idx(x, y, z)
@@ -310,7 +533,7 @@ def face_textures(x, y, z):
     for f, (dx, dy, dz) in enumerate(DIRS):
         nx, ny, nz = x + dx, y + dy, z + dz
         t = TEXIDX["default"]
-        if 0 <= nx < N and 0 <= ny < N and 0 <= nz < N and not solid[idx(nx, ny, nz)]:
+        if 0 <= nx < N and 0 <= ny < N and 0 <= nz < N and isopen(idx(nx, ny, nz)):
             room = roomof[idx(nx, ny, nz)]
             if (v, f) in facetex:
                 t = facetex[(v, f)]
@@ -318,11 +541,12 @@ def face_textures(x, y, z):
                 t = TEXIDX[blocktex[v]]
             elif room is None:                       # face donnant sur l'extérieur
                 if f == 5 and z == FLOOR - 1:
-                    t = TEXIDX[groundtex.get((x, y), "grass")]
+                    gt = groundtex.get((x, y), "grass")
+                    t = TEXIDX[gt if gt in TEXIDX else "grass"]
                 elif f == 5:
                     t = TEXIDX["roof"]
                 elif v in shellof:
-                    t = TEXIDX[shellof[v].ext]
+                    t = TEXIDX["plinth" if z == FLOOR else shellof[v].ext]
                 else:
                     t = TEXIDX["cliff"]
             else:
@@ -333,14 +557,17 @@ def face_textures(x, y, z):
 # ---------------------------------------------------------------------------
 # Octree
 # ---------------------------------------------------------------------------
-OCTSAV_CHILDREN, OCTSAV_EMPTY, OCTSAV_SOLID = 0, 1, 2
+OCTSAV_CHILDREN, OCTSAV_EMPTY, OCTSAV_SOLID, OCTSAV_NORMAL = 0, 1, 2, 3
 EMPTYTEX = (TEXIDX["default"],) * 6
 _cache = {}
 
 
 def leafkey(x, y, z):
-    if not solid[idx(x, y, z)]:
-        return ("e",)
+    v = idx(x, y, z)
+    if not solid[v]:
+        return ("e", material.get(v, 0))
+    if v in shape:
+        return ("n",) + face_textures(x, y, z) + shape[v]
     return ("s",) + face_textures(x, y, z)
 
 
@@ -372,7 +599,12 @@ def build(x, y, z, size, out):
             out.append(struct.pack("<B", OCTSAV_CHILDREN))
             build(cx, cy, cz, half, out)
         elif key[0] == "e":
-            out.append(struct.pack("<B6H", OCTSAV_EMPTY, *EMPTYTEX))
+            if key[1]:
+                out.append(struct.pack("<B6HH", OCTSAV_EMPTY | 0x40, *(EMPTYTEX + (key[1],))))
+            else:
+                out.append(struct.pack("<B6H", OCTSAV_EMPTY, *EMPTYTEX))
+        elif key[0] == "n":
+            out.append(struct.pack("<B12B6H", OCTSAV_NORMAL, *(key[7:19] + key[1:7])))
         else:
             out.append(struct.pack("<B6H", OCTSAV_SOLID, *key[1:]))
 
@@ -392,14 +624,18 @@ def W(v):
     return v * VOX
 
 
-def prop(name, x, y, yaw=0, z=0):
+def prop(name, x, y, yaw=0, z=0, block=0):
+    """Décor du jeu de base ; posé sur le relief ; bloque les points de passage autour."""
     if name not in MAPMODELS:
         MAPMODELS.append(name)
-    ENTS.append((W(x), W(y), GROUND + z, yaw, MAPMODELS.index(name), 0, 0, 0, ET_MAPMODEL))
+    ENTS.append((W(x), W(y), GROUND + z + terrainh(x, y), yaw, MAPMODELS.index(name), 0, 0, 0, ET_MAPMODEL))
+    for dy in range(-block, block + 1):
+        for dx in range(-block, block + 1):
+            propblock.add((int(x) + dx, int(y) + dy))
 
 
-def item(kind, x, y):
-    ENTS.append((W(x), W(y), GROUND + 4, 0, 0, 0, 0, 0, kind))
+def item(kind, x, y, z=4):
+    ENTS.append((W(x), W(y), GROUND + z + terrainh(x, y), 0, 0, 0, 0, 0, kind))
 
 
 def light(x, y, rgb, radius=260, z=110):
@@ -421,21 +657,43 @@ for x in (27, 29, 31, 33, 35, 37):
     ENTS.append((W(x), W(26), GROUND + 4, 0, 0, 0, 0, 0, ET_PLAYERSTART))
 
 # --- Place centrale et paysage -------------------------------------------------
-for (x, y) in ((26, 37), (38, 37), (26, 25), (38, 25)):
+for (x, y) in ((25.5, 37.5), (38.5, 37.5), (25.5, 24.5), (38.5, 24.5)):
     prop("dcp/streetlamp", x, y)
-prop("dcp/bench", 28, 35, 0)
-prop("dcp/bench", 36, 35, 0)
-for (x, y, m) in ((6, 6, "dcp/tree2"), (12, 8, "dcp/tree3"), (22, 6, "dcp/tree2"), (44, 4, "dcp/tree3"),
-                  (40, 37, "dcp/tree2"), (24, 56, "dcp/tree2"), (14, 57, "dcp/tree3"), (58, 30, "dcp/palmtree"),
-                  (40, 58, "dcp/palmtree"), (60, 4, "dcp/tree2"), (22, 28, "dcp/tree3")):
-    prop(m, x, y)
-item(I_SHELLS, 28, 30)
-item(I_BULLETS, 36, 30)
-item(I_HEALTH, 32, 28)
-item(I_QUAD, 32, 55)
+    light(x, y, (255, 210, 150), 160, 60)
+for (x, y) in ((21.5, 31.5), (40.5, 32.5), (19.5, 26.5), (33.5, 22.5), (42.5, 26.5), (19.5, 37.5)):
+    prop("dcp/groundlamp", x, y)
+prop("objects/bench01", 28, 35.5, 0, 0, 0)
+prop("objects/bench01", 36, 35.5, 0, 0, 0)
+prop("objects/well_base", 32.5, 31.5, 0, 0, 1)        # puits au centre de la place
+prop("objects/well_roof", 32.5, 31.5, 0, 0)
+TREES = ((22, 6, "dcp/tree2"), (44, 4, "dcp/tree3"), (40, 37, "dcp/tree2"), (22, 56, "dcp/tree2"),
+         (14, 57, "dcp/tree3"), (58, 30, "dcp/palmtree"), (40, 58, "dcp/palmtree"), (60, 4, "dcp/tree2"),
+         (22, 28, "dcp/tree3"), (58, 20, "dcp/tree3"), (35, 57, "dcp/tree2"), (6, 57, "dcp/tree2"),
+         (60, 47, "dcp/tree3"), (24, 9, "dcp/tree2"), (10, 17, "dcp/tree3"), (45, 38, "dcp/palmtree"))
+for (x, y, m) in TREES:
+    prop(m, x + 0.5, y + 0.5, 0, 0, 1)
+for (x, y) in ((24.5, 40.5), (39.5, 40.5), (13.5, 22.5), (24.5, 22.5), (45.5, 27.5), (45.5, 36.5), (33.5, 52.5)):
+    prop("dcp/plant1", x, y, 0, 0, 0)                 # buissons au pied des bâtiments
+for (x, y) in ((28.5, 52.5), (31.5, 52.5), (25.5, 56.5), (32.5, 56.5)):
+    prop("dcp/leafs", x, y)                           # végétation autour de l'étang
+item(I_SHELLS, 28, 29)
+item(I_BULLETS, 37, 29)
+item(I_HEALTH, 32.5, 27)
+item(I_QUAD, 29, 60)
 ambience("ambience/forest1", 32, 31, 420, 200)
-for (x, y) in ((38, 54), (10, 4), (59, 38), (22, 22)):
+ambience("ambience/creek", 29, 56, 200, 80)
+for (x, y) in ((38, 54), (20, 4), (59, 38), (22, 22), (8, 58), (59, 9)):
     monster_spawn(x, y)
+# éclairage coloré à l'entrée de chaque bâtiment (lanternes)
+DOORLIGHTS = {"profil": (255, 200, 120), "competences": (110, 170, 255), "certificats": (255, 210, 110),
+              "contact": (255, 240, 200), "galerie": (255, 140, 90)}
+for r in ROOMS:
+    col = DOORLIGHTS.get(r.rid)
+    for (side, a, b) in r.doors:
+        x0, x1, y0, y1 = r.box[:4]
+        mx = (a + b) / 2.0
+        lx, ly = {"s": (mx, y0 - 1.6), "n": (mx, y1 + 1.6), "w": (x0 - 1.6, mx), "e": (x1 + 1.6, mx)}[side]
+        light(lx, ly, col, 150, 80)
 
 # --- Profil : bureau / bibliothèque ----------------------------------------------
 prop("objects/table01", 16.5, 46.5, 90)
@@ -492,8 +750,6 @@ monster_spawn(51, 35, 270)
 ambience("ambience/wind", 50, 32, 190, 80)
 
 # --- Galerie des projets ---------------------------------------------------------------
-prop("dcp/bench", 12.3, 36, 90)
-prop("dcp/bench", 12.3, 46, 90)
 light(11, 26, (255, 250, 240), 260)
 light(11, 45, (255, 250, 240), 260)
 monster_spawn(11, 22, 90)
@@ -507,9 +763,9 @@ prop("dcp/cart", 8.2, 25.2, 0)
 light(6, 23, (255, 190, 120), 170)
 item(I_BULLETS, 7.5, 23)
 ambience("ambience/distant_cars", 6, 23, 120, 50)
-# Magic Shape Generator : planètes de feu et de glace d'ADOFAI
-prop("makke/planet", 6, 29, 0, 16)
-prop("makke/moon", 6, 30.6, 0, 16)
+# Magic Shape Generator : salle néon, braseros et lampes
+prop("dcp/groundlamp", 4, 28)
+prop("dcp/groundlamp", 4, 31)
 prop("dcp/firebowl", 8.3, 27.6)
 prop("dcp/firebowl", 8.3, 31.4)
 light(6, 29.5, (230, 80, 255), 170)
@@ -556,17 +812,15 @@ def teleport(x, y, z, idx, tx, ty, tyaw):
     ENTS.append((W(tx), W(ty), GROUND + 4, tyaw, idx, 0, 0, 0, TELEDEST))
 
 
-# Parkour 1 : jump pad sur le dernier pilier pour atteindre la plateforme d'arrivée
-jumppad(55, 50, GROUND + 6 * VOX + 2, 30, 32, 0)
-teleport(57, 57, GROUND + 9 * VOX + 4, 1, 32, 33, 180)        # retour à la place
-# Parkour 2 : jump pad au pied de la galerie, vers son toit
-jumppad(17, 37, GROUND + 2, 46, 0, -30)
-teleport(37, 49, GROUND + (H + 1) * VOX + 4, 2, 32, 33, 180)  # retour à la place
+# Parcours 2 : jump pad au sol qui envoie sur la plateforme haute
+jumppad(5.5, 5.5, GROUND + 2, 30, 28, 0)
+teleport(54.5, 51, GROUND + 48 + 4, 1, 32, 33, 180)          # parcours 1 -> place
+teleport(15, 11, GROUND + 68 + 4, 2, 32, 33, 180)            # parcours 2 -> place
 PARKOURS = [
-    ("pk1", "Parcours des piliers", (43, 42, 1, 270),
-     (46, 48, 41, 43, FLOOR + 2, FLOOR + 4), (40, 60, 39, 60, FLOOR, FLOOR + 1), (52, 58, 54, 58, FLOOR + 9, FLOOR + 12)),
-    ("pk2", "Parcours des toits", (11.5, 37, H + 1, 90),
-     (15, 23, 42, 50, FLOOR + H + 1, FLOOR + H + 3), (14, 41, 33, 54, FLOOR, FLOOR + 1), (34, 38, 42, 50, FLOOR + H + 1, FLOOR + H + 3)),
+    ("pk1", "Parcours des piliers", (43.5, 42.5, 8, 270),
+     (46, 49, 41, 44, FLOOR, FLOOR + 3), (41, 57, 40, 54, FLOOR, FLOOR + 0.3125), (50, 56, 49, 53, FLOOR + 1, FLOOR + 3)),
+    ("pk2", "Parcours des poutres", (5.5, 10.5, 80, 90),
+     (7, 10, 10, 11, FLOOR + 3, FLOOR + 5), (3, 17, 6, 16, FLOOR, FLOOR + 1), (13, 16, 9, 12, FLOOR + 3, FLOOR + 5)),
 ]
 
 # --- Phases de combat : départs des vagues (tag 10 banquise, 11 Colisée) et du boss (12)
@@ -590,12 +844,32 @@ ambience("akari/stadiumsound", 33, 12, 300, 120)
 
 
 def waypoints():
-    nodes, index = [], {}
+    def walkable(x, y):
+        if (x, y) in propblock:
+            return None
+        v0, v1 = idx(x, y, FLOOR), idx(x, y, FLOOR + 1)
+        if not solid[idx(x, y, FLOOR - 1)] or (solid[v1] and v1 not in shape):
+            return None
+        if solid[v0]:
+            if v0 not in shape:
+                return None
+            e = shape[v0]
+            if e[:8] != (0x80,) * 8:                  # colonne, poutre... : pas un sol
+                return None
+            h = max(x >> 4 for x in e[8:])
+            if h > 2 and (x, y) not in groundtex and max(HC[y][x], HC[y][x + 1], HC[y + 1][x], HC[y + 1][x + 1]) == 0:
+                return None                         # plateformes de parkour
+            return h * 4
+        return 0
+    nodes, index, zs = [], {}, {}
     for y in range(N):
         for x in range(N):
-            if not solid[idx(x, y, FLOOR)] and not solid[idx(x, y, FLOOR + 1)] and solid[idx(x, y, FLOOR - 1)]:
-                index[(x, y)] = len(nodes) + 1
-                nodes.append((x, y))
+            h = walkable(x, y)
+            if h is None:
+                continue
+            index[(x, y)] = len(nodes) + 1
+            nodes.append((x, y))
+            zs[(x, y)] = h
     out = []
     for (x, y) in nodes:
         links = [index[(x + dx, y + dy)] for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)) if (x + dx, y + dy) in index]
@@ -604,7 +878,7 @@ def waypoints():
                 break
             if (x + dx, y + dy) in index and (x + dx, y) in index and (x, y + dy) in index:
                 links.append(index[(x + dx, y + dy)])
-        out.append(((x + 0.5) * VOX, (y + 0.5) * VOX, GROUND + 1.0, links))
+        out.append(((x + 0.5) * VOX, (y + 0.5) * VOX, GROUND + 1.0 + zs[(x, y)], links))
     return out
 
 
@@ -646,6 +920,12 @@ def write_cfg(path):
          "sunlight 0xFFF0D8", "sunlightyaw 50", "sunlightpitch 55", "sunlightscale 1.2",
          "skylight 0x5A6478", "ambient 0x1C1C1C", "lightprecision 32",
          "fog 6000", "fogcolour 0x8FA8C8", "",
+         "// eau (textures du jeu de base, comme data/default_map_settings.cfg d'origine)",
+         "materialreset",
+         'texture water "golgotha/water2.jpg"', 'texture 1 "textures/waterfall.jpg"',
+         'texture 1 "textures/watern.jpg"', 'texture 1 "textures/waterdudv.jpg"',
+         'texture 1 "textures/waterfalln.jpg"', 'texture 1 "textures/waterfalldudv.jpg"',
+         "watercolour 0x284858", "",
          "texturereset", "setshader stdworld"]
     for name, line in TEXTURES:
         L.append(line + "   // " + name)
@@ -677,7 +957,7 @@ def write_cfg(path):
         title, text, spec = ZONES[zid]
         zone(zid, box, title, text, spec)
     for cid, title, (sx, sy, sh, syaw), arm, fail, end in PARKOURS:
-        L.append("pfcourse %s %g %g %g %g %s" % (cid, W(sx) + 16, W(sy) + 16, GROUND + sh * VOX + 16, syaw, cubescript_string(title)))
+        L.append("pfcourse %s %g %g %g %g %s" % (cid, W(sx), W(sy), GROUND + sh + 16, syaw, cubescript_string(title)))
         zone(cid + "_arm", arm, title, "", "arm:" + cid)
         zone(cid + "_fail", fail, title, "", "fail:" + cid)
         zone(cid + "_end", end, title, "", "end:" + cid)

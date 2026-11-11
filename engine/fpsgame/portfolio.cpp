@@ -12,6 +12,15 @@
 //      défaite (annoncée par le serveur) conclut l'histoire.
 // Contenu et coordonnées : packages/base/portfolio.cfg (généré par tools/gen_map.py).
 #include "game.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#else
+#define EMSCRIPTEN_KEEPALIVE
+#endif
+
+// Mesures automatisées (tests de fluidité de la caméra) : orientation du joueur local.
+extern "C" EMSCRIPTEN_KEEPALIVE float pf_getyaw() { return game::player1 ? game::player1->yaw : 0; }
+extern "C" EMSCRIPTEN_KEEPALIVE float pf_getpitch() { return game::player1 ? game::player1->pitch : 0; }
 
 namespace portfolio
 {
@@ -205,7 +214,8 @@ namespace portfolio
         {
             fpsent *e = game::players[i];
             if(e->aitype == AI_NONE) continue;
-            conoutf("monstre %s %s %.0f %.0f %.0f vie %d", e->name, e->state == CS_ALIVE ? "vivant" : "mort", e->o.x, e->o.y, e->o.z, e->health);
+            conoutf("monstre %s %s %.0f %.0f %.0f vie %d proprio %d moi %d ia %d etat %d wp %d", e->name, e->state == CS_ALIVE ? "vivant" : "mort", e->o.x, e->o.y, e->o.z, e->health,
+                    e->ownernum, game::player1->clientnum, e->ai ? 1 : 0, e->ai ? e->ai->getstate().type : -1, ai::waypoints.length());
         }
     });
     // pflookat x y z : oriente la vue vers un point (tests automatisés)
@@ -308,7 +318,10 @@ namespace portfolio
             if(pfautolight) execute("calclight -1");
             // Les monstres peuvent être initialisés avant la fin du chargement de la carte
             // (qui efface les points de passage) : on recharge le graphe de navigation.
-            ai::loadwaypoints();
+            // Rechargement forcé : en multijoueur, le client a souvent déjà commencé à
+            // poser des points de passage « à la trace » (quelques dizaines, non reliés),
+            // ce qui bloquait le chargement du vrai graphe et figeait les monstres.
+            ai::loadwaypoints(true);
         }
         if(d->state != CS_ALIVE) return;
 

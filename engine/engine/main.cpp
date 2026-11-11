@@ -1046,9 +1046,10 @@ void checkinput()
                 {
                     int dx = event.motion.xrel, dy = event.motion.yrel;
 #ifdef __EMSCRIPTEN__
-                    // PORTFOLIO : pas de saut de la vue à la capture, ni de delta aberrant
-                    if(pfskipmotion > 0) { pfskipmotion--; break; }
-                    if(abs(dx) > 300 || abs(dy) > 300) break;
+                    // PORTFOLIO : dans le navigateur, les mouvements viennent directement des
+                    // événements pointermove (pf_mousemove), cumulés par image : on ignore ici
+                    // ceux de SDL (perdus ou nuls selon le mode relatif de SDL).
+                    break;
 #endif
                     checkmousemotion(dx, dy);
                     if(!g3d_movecursor(dx, dy)) mousemove(dx, dy);
@@ -1090,6 +1091,23 @@ void checkinput()
     }
 #ifdef __EMSCRIPTEN__
     if(focused < 0 && grabinput) inputgrab(grabinput = false);
+    // PORTFOLIO : mouvements de souris de l'image, cumulés côté JavaScript
+    extern int pfmousedx, pfmousedy;
+    if(pfmousedx || pfmousedy)
+    {
+        int dx = pfmousedx, dy = pfmousedy;
+        pfmousedx = pfmousedy = 0;
+        // Le pointer lock est actif (seule condition d'envoi côté JS) : si une perte de
+        // focus parasite (clic dans la page parente de l'iframe) a relâché la capture
+        // côté jeu, on la rétablit au lieu de figer la vue.
+        if(!grabinput) { inputgrab(grabinput = true); pfskipmotion = 0; }
+        if(pfskipmotion <= 0 && abs(dx) < 4000 && abs(dy) < 4000)
+        {
+            if(!g3d_movecursor(dx, dy)) mousemove(dx, dy);
+            mousemoved = true;
+        }
+        if(pfskipmotion > 0) pfskipmotion--;
+    }
 #else
     if(focused) { if(grabinput != (focused>0)) inputgrab(grabinput = focused>0, shouldgrab); focused = 0; }
 #endif

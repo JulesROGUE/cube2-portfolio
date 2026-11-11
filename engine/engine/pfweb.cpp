@@ -21,6 +21,15 @@ extern "C" EMSCRIPTEN_KEEPALIVE void pf_grab(int on)
     if((on != 0) != grabinput) inputgrab(grabinput = on != 0, false);
 }
 
+// Mouvements de souris (pointer lock) transmis directement par la coquille web :
+// cumulés entre deux images puis appliqués une fois par image (voir checkinput).
+int pfmousedx = 0, pfmousedy = 0;
+extern "C" EMSCRIPTEN_KEEPALIVE void pf_mousemove(int dx, int dy)
+{
+    pfmousedx += dx;
+    pfmousedy += dy;
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE void pf_resize(int w, int h)
 {
     defformatstring(cmd, "screenres %d %d", w, h);

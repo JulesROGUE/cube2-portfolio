@@ -20,7 +20,7 @@ STORY = {
 FRAGMENTS = [
     ("profil", "Profil"), ("competences", "Compétences BTS SIO SLAM"), ("projets", "Projets"),
     ("certificats", "Certificats"), ("tux", "Tux World"), ("contact", "Contact"),
-    ("pk1", "Parcours des piliers"), ("pk2", "Parcours des toits"),
+    ("pk1", "Parcours des piliers"), ("pk2", "Parcours des poutres"),
     ("arene_banquise", "Combat de la banquise"), ("arene_colisee", "Combat du Colisée"),
 ]
 

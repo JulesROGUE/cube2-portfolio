@@ -26,6 +26,14 @@ packages/particles/
 packages/textures/notexture.png
 packages/textures/sky.png
 packages/textures/default.png
+packages/textures/waterfall.jpg
+packages/textures/watern.jpg
+packages/textures/waterdudv.jpg
+packages/textures/waterfalln.jpg
+packages/textures/waterfalldudv.jpg
+packages/golgotha/water2.jpg
+packages/caustics/
+packages/golgotha/golgotha readme.txt
 packages/skyboxes/remus/
 
 # --- Joueur (Mr. Fixit), armes à la 1re personne, armes en main, objets ---------------
@@ -71,6 +79,8 @@ packages/models/dcp/sack/
 packages/models/dcp/chest/
 packages/models/dcp/candle/
 packages/models/dcp/vase/
+packages/models/dcp/groundlamp/
+packages/models/dcp/leafs/
 packages/models/dcp/tree2/
 packages/models/dcp/tree3/
 packages/models/dcp/palmtree/
@@ -82,10 +92,10 @@ packages/models/objects/lamp01/
 packages/models/objects/sign01/
 packages/models/objects/minekart/
 packages/models/objects/lantern01/
+packages/models/objects/well_base/
+packages/models/objects/well_roof/
+packages/models/objects/bench01/
 packages/models/objects/license.txt
-packages/models/makke/planet/
-packages/models/makke/moon/
-packages/models/makke/license.txt
 packages/models/aftas/caixa/
 packages/models/aftas/aftasardem licence.txt
 
@@ -105,6 +115,11 @@ packages/ik2k/ik_brick_3216d.jpg
 packages/ik2k/ik_ground_grass128.jpg
 packages/ik2k/ik_ground_cobbles128.jpg
 packages/ik2k/ik_cliff256.jpg
+packages/ik2k/ik_brick_6464a.jpg
+packages/ik2k/ik_stonestep25632.jpg
+packages/ik2k/ik_wood_trimh64d.jpg
+packages/ik2k/ik_brick_trimh32a.jpg
+packages/ik2k/ik_floor_brick128a.jpg
 packages/ik2k/ik2k_22feb01.txt
 packages/ikbase/ik_floor_conc128a.jpg
 packages/ikbase/ik_floor_conc128b.jpg

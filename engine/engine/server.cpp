@@ -663,6 +663,9 @@ void serverslice(bool dedicated, uint timeout)   // main server update, called f
                 client &c = addclient(ST_TCPIP);
                 c.peer = event.peer;
                 c.peer->data = &c;
+                // PORTFOLIO : les clients web calculent l'éclairage au chargement (navigateur
+                // bloqué quelques secondes) : délai de coupure élargi (15 à 30 s).
+                enet_peer_timeout(c.peer, 0, 15000, 30000);
                 string hn;
                 copystring(c.hostname, (enet_address_get_host_ip(&c.peer->address, hn, sizeof(hn))==0) ? hn : "unknown");
                 logoutf("client connected (%s)", c.hostname);

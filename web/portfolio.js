@@ -135,16 +135,24 @@
     canvas.focus();
     resumeAudio();
     if (!ready || document.pointerLockElement === canvas) return;
-    if (canvas.requestPointerLock) {
-      try {
-        var p = canvas.requestPointerLock({ unadjustedMovement: true });
-        if (p && p.catch) p.catch(function () { try { canvas.requestPointerLock(); } catch (e) {} });
-      } catch (e) { try { canvas.requestPointerLock(); } catch (e2) {} }
-    }
+    // Mouvement « ajusté » par le système (même vitesse que le curseur) : le mode brut
+    // (unadjustedMovement) envoie des comptes de capteur, énormes sur une souris haute
+    // résolution, d'où des à-coups de la vue et du curseur des menus.
+    if (canvas.requestPointerLock) { try { canvas.requestPointerLock(); } catch (e) {} }
   });
   document.addEventListener('keydown', resumeAudio);
   document.addEventListener('pointerlockchange', function () {
     call('pf_grab', ['number'], [document.pointerLockElement === canvas ? 1 : 0]);
+  });
+  // Vue et curseur des menus : chaque mouvement (y compris les événements regroupés
+  // par le navigateur) est transmis au jeu, qui les cumule et les applique une fois
+  // par image. Plus fiable que la voie SDL, qui pouvait en perdre en pointer lock.
+  document.addEventListener('pointermove', function (e) {
+    if (!ready || document.pointerLockElement !== canvas) return;
+    var dx = 0, dy = 0, list = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    if (list && list.length > 1) { for (var i = 0; i < list.length; i++) { dx += list[i].movementX; dy += list[i].movementY; } }
+    else { dx = e.movementX; dy = e.movementY; }
+    if (dx || dy) Module._pf_mousemove(dx | 0, dy | 0);
   });
   document.addEventListener('pointerlockerror', function () {
     console.warn('pointer lock refusé (iframe sans allow="pointer-lock" ?)');

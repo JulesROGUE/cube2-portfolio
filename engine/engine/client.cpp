@@ -251,6 +251,11 @@ void connectserv(const char *servername, int serverport, const char *serverpassw
     }
 
     connpeer = enet_host_connect(clienthost, &address, server::numchannels(), 0); 
+#ifdef __EMSCRIPTEN__
+    // PORTFOLIO : le calcul de l'éclairage au chargement de la carte bloque le navigateur
+    // quelques secondes ; délai de coupure ENet élargi (15 à 30 s au lieu de 5 à 30 s).
+    if(connpeer) enet_peer_timeout(connpeer, 0, 15000, 30000);
+#endif
     enet_host_flush(clienthost);
     connmillis = totalmillis;
     connattempts = 0;

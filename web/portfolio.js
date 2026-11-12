@@ -66,42 +66,34 @@
   var BUILD = buildMeta && buildMeta.content !== '__BUILD__' ? buildMeta.content : '';
   function versioned(path) { return BUILD ? path + '?v=' + BUILD : path; }
 
+  // Écran de chargement minimal : « Chargement.. » puis « <étape> <n>/3 ».
   var stepEl = document.getElementById('ld-step');
-  var fillEl = document.getElementById('ld-fill');
-  var detailEl = document.getElementById('ld-detail');
   var dl = { wasm: [0, 0], data: [0, 0] };   // [chargé, total] en octets
-  var phase = 'download';
-  // taille réelle (décompressée) du paquet de données : Emscripten annonce la taille
-  // gzip comme total, ce qui faisait grimper le total en cours de route
+  // moteur et données se téléchargent en parallèle : l'étape affichée ne recule jamais
+  var wasmDone = false, dataDone = false, failed = false, shown = 0;
+  var STEPS = ['Moteur du jeu', 'Données du jeu', 'Préparation de la carte'];
+  function showStep(i) {
+    if (failed || i < shown) return;
+    shown = i;
+    stepEl.textContent = STEPS[i] + ' ' + (i + 1) + '/' + STEPS.length;
+  }
+  function renderProgress() {
+    if (dl.data[1] && dl.data[0] >= dl.data[1]) dataDone = true;
+    if (!wasmDone) showStep(0);
+    else if (!dataDone) showStep(1);
+    else showStep(2);
+  }
+  function setPhase() { dataDone = true; renderProgress(); }
+  function loadError() {
+    failed = true;
+    stepEl.className = 'ld-step ld-error';
+    stepEl.textContent = 'Échec du chargement : actualisez la page';
+  }
   var dataRaw = 0;
   fetch(versioned('cube2.data'), { method: 'HEAD' }).then(function (r) {
     dataRaw = +r.headers.get('X-Raw-Length') || 0;
-    if (dataRaw && dl.data[1] < dataRaw) { dl.data[1] = dataRaw; renderProgress(); }
+    if (dataRaw && dl.data[1] < dataRaw) { dl.data[1] = dataRaw; }
   }).catch(function () {});
-  function mo(n) { return (n / 1048576).toLocaleString('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: 1 }); }
-  function renderProgress() {
-    if (phase !== 'download') return;
-    var loaded = dl.wasm[0] + dl.data[0];
-    var total = dl.wasm[1] + dl.data[1];
-    var pct = total ? Math.min(100, Math.round(loaded / total * 100)) : 0;
-    stepEl.textContent = 'Étape 1/2 · Téléchargement du jeu';
-    fillEl.style.width = pct + '%';
-    detailEl.textContent = total
-      ? mo(loaded) + ' / ' + mo(total) + ' Mo (' + pct + ' %) — moteur ' + mo(dl.wasm[0]) + '/' + mo(dl.wasm[1]) + ' Mo, données ' + mo(dl.data[0]) + '/' + mo(dl.data[1]) + ' Mo'
-      : 'Connexion au serveur…';
-  }
-  function setPhase(name, text) {
-    phase = name;
-    stepEl.textContent = name === 'prepare' ? 'Étape 2/2 · Préparation de la carte' : stepEl.textContent;
-    fillEl.style.width = '100%';
-    fillEl.className = name === 'prepare' ? 'ld-fill indeterminate' : 'ld-fill';
-    detailEl.textContent = text;
-  }
-  function loadError(e) {
-    stepEl.textContent = 'Le chargement a échoué';
-    detailEl.className = 'ld-detail ld-error';
-    detailEl.textContent = 'Actualise la page pour réessayer (' + (e && e.message ? e.message : e) + ').';
-  }
 
   var noop = function () {};
   window.Module = {
@@ -131,6 +123,8 @@
           var buf = new Uint8Array(got);
           var off = 0;
           chunks.forEach(function (c) { buf.set(c, off); off += c.length; });
+          wasmDone = true;
+          renderProgress();
           return buf.buffer;
         });
       }).then(function (bytes) {
@@ -157,7 +151,7 @@
         return;
       }
       if (/Preparing|Running/.test(t) || (t === '' && dl.data[1] && dl.data[0] >= dl.data[1])) {
-        setPhase('prepare', 'Décompression des fichiers, chargement de la carte et calcul de l\'éclairage…');
+        setPhase();
       }
       statusEl.textContent = t.replace('Preparing...', 'Préparation…').replace('Running...', 'Démarrage…');
     },

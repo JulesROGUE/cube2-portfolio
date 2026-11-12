@@ -40,8 +40,20 @@ static void APIENTRY webFramebufferTexture3D(GLenum target, GLenum attachment, G
     glFramebufferTextureLayer(target, attachment, texture, level, layer);
 }
 
+// Dessins multiples (absents de WebGL2 sans extension) : une boucle de dessins simples
+static void APIENTRY webMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei n)
+{
+    for(GLsizei i = 0; i < n; i++) if(count[i] > 0) glDrawArrays(mode, first[i], count[i]);
+}
+static void APIENTRY webMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, const void * const *indices, GLsizei n)
+{
+    for(GLsizei i = 0; i < n; i++) if(count[i] > 0) glDrawElements(mode, count[i], type, indices[i]);
+}
+
 void webport_glfuncs()
 {
+    glMultiDrawArrays_ = webMultiDrawArrays;
+    glMultiDrawElements_ = (PFNGLMULTIDRAWELEMENTSPROC)webMultiDrawElements;
     glFramebufferTexture3D_ = webFramebufferTexture3D;
     glVertexAttrib4Nub_ = web4Nub;
     glVertexAttrib4Nubv_ = web4Nubv;

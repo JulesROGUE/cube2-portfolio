@@ -17,6 +17,22 @@ for line in open(src, encoding="utf-8"):
     cmd = w[0]
     if cmd in ("skybox", "lightprecision", "watercolour"):
         continue                       # ciel procédural de Tesseract (atmo) ; pas de lightmaps
+    if cmd == "texture" and len(w) >= 3 and w[1] in ("0", "c", "diffuse"):
+        # Tesseract : TEX_SCALE de 16 (8 dans Sauerbraten) -> échelle doublée pour garder
+        # la même taille de texture dans le monde
+        code, _, comment = line.partition("//")
+        parts = code.split()
+        while len(parts) < 7:
+            parts.append("0" if len(parts) < 6 else "1")
+        try:
+            parts[6] = "%g" % (float(parts[6]) * 2)
+        except ValueError:
+            pass
+        # panneaux de texte : sens horizontal des faces inversé par rapport à Sauerbraten
+        if "pf/sign_" in parts[2]:
+            parts[3] = {"0": "4", "4": "0", "1": "7", "7": "1", "2": "5", "5": "2", "3": "6", "6": "3"}.get(parts[3], parts[3])
+        out.append(" ".join(parts) + ("   //" + comment if comment else ""))
+        continue
     if cmd == "autograss":
         out.append(line.replace("autograss", "texgrass", 1))
         continue

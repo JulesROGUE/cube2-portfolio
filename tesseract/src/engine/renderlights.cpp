@@ -538,8 +538,33 @@ VARF(forcepacknorm, 0, 0, 1, initwarning("g-buffer setup", INIT_LOAD, CHANGE_SHA
 bool usepacknorm() { return forcepacknorm || msaasamples || !useavatarmask(); }
 ICOMMAND(usepacknorm, "", (), intret(usepacknorm() ? 1 : 0));
 
+#ifdef __EMSCRIPTEN__
+static bool pfsamplegdepth = false;   // passe transparente : gdepthtex est lu, pas écrit
+#endif
+
 void maskgbuffer(const char *mask)
 {
+#ifdef __EMSCRIPTEN__
+    // PORTFOLIO : en WebGL2, la sortie n du shader doit aller dans l'attachement n : on
+    // rattache les textures du g-buffer dans l'ordre du masque (ex. « cnd » -> 0, 1, 2),
+    // ce qui évite aussi d'échantillonner une texture encore attachée.
+    {
+        GLuint texs[4];
+        int n = 0;
+        for(const char *m = mask; *m; m++) switch(*m)
+        {
+            case 'c': texs[n++] = gcolortex; break;
+            case 'n': texs[n++] = gnormaltex; break;
+            case 'd': if(gdepthformat) texs[n++] = pfsamplegdepth ? 0 : gdepthtex; break;
+            case 'g': texs[n++] = gglowtex; break;
+        }
+        GLenum bufs[4];
+        loopi(4) glFramebufferTexture2D_(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+i, GL_TEXTURE_RECTANGLE, i < n ? texs[i] : 0, 0);
+        loopi(n) bufs[i] = texs[i] ? GL_COLOR_ATTACHMENT0+i : GL_NONE;
+        glDrawBuffers_(n, bufs);
+        return;
+    }
+#endif
     GLenum drawbufs[4];
     int numbufs = 0;
     while(*mask) switch(*mask++)
@@ -4916,6 +4941,9 @@ void rendertransparent()
     if(msaalight) glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msdepthtex);
     else glBindTexture(GL_TEXTURE_RECTANGLE, gdepthtex);
     glActiveTexture_(GL_TEXTURE0);
+#ifdef __EMSCRIPTEN__
+    pfsamplegdepth = true;
+#endif
 
     if(ghasstencil) glEnable(GL_STENCIL_TEST);
 
@@ -5068,6 +5096,9 @@ void rendertransparent()
         renderparticles(PL_NOLAYER);
     }
     else renderparticles();
+#ifdef __EMSCRIPTEN__
+    pfsamplegdepth = false;
+#endif
 }
 
 VAR(gdepthclear, 0, 1, 1);

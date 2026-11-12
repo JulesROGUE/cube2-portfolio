@@ -98,6 +98,16 @@ namespace portfolio
         return NULL;
     }
 
+    // Progression transmise à la page parente (fenêtre « rançon » du portfolio) :
+    // Module.pfProgress(fragments, total, boss) -> postMessage cube2:progress (web/portfolio.js)
+    static void sendprogress()
+    {
+#ifdef __EMSCRIPTEN__
+        const char *boss = bossdone ? "dead" : (bossasked ? "alive" : "locked");
+        EM_ASM({ if (Module.pfProgress) Module.pfProgress($0, $1, UTF8ToString($2)); }, numfound(), fragments.length(), boss);
+#endif
+    }
+
     // --- Histoire : chapitres et objectifs dans la console, inscriptions dans le monde ---
     // Textes : alias pfstory_<clé> de packages/base/portfolio.cfg (générés depuis
     // tools/content.py) ; « | » sépare les lignes.
@@ -212,6 +222,7 @@ namespace portfolio
         else conoutf("\f2[%d/%d] \f7%s", numfound(), fragments.length(), f->title);
         if(numfound() >= fragments.length()) say("boss", "\f3");
         else objective();
+        sendprogress();
     }
 
     void reset()
@@ -395,11 +406,12 @@ namespace portfolio
             if(z && d && (inarena[a] || z->inside(d->o))) grant(z->id, fr("vague nettoyée"));
             inarena[a] = false;
         }
-        else if(!strcmp(msg, "boss 1")) { bossasked = true; say("boss", "\f3"); }
+        else if(!strcmp(msg, "boss 1")) { bossasked = true; say("boss", "\f3"); sendprogress(); }
         else if(!strcmp(msg, "bossdown"))
         {
             if(bossdone) return;
             bossdone = true;
+            sendprogress();
             if(pfend[0]) conoutf("\f0%s", pfend);
             else say("end", "\f0", false);
         }
@@ -497,6 +509,7 @@ namespace portfolio
             if(pfautolight) execute("calclight -1");
             say("intro");
             objective();
+            sendprogress();   // état courant à l'entrée dans la partie
             // Les monstres peuvent être initialisés avant la fin du chargement de la carte
             // (qui efface les points de passage) : on recharge le graphe de navigation.
             // Rechargement forcé : en multijoueur, le client a souvent déjà commencé à

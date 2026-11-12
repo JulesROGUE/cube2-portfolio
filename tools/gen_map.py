@@ -88,6 +88,12 @@ TEX = {
     "cert_floor": "ik2k/ik_floor_wood128d.jpg", "cert_wall": "ik2k/ik_wpaperplain128d.jpg",
     "tux_floor": "pf/floor_snow.jpg", "tux_wall": "pf/wall_ice.jpg",
     "post_floor": "ik2k/ik_floor_tile128b.jpg", "post_wall": "ik2k/ik_brick_3216d.jpg",
+    # détails d'architecture intérieurs (lambris, tapis, poutres)
+    "wainscot": "ik2k/ik_woodwall128128b.jpg", "beam": "ik2k/ik_woodv256a.jpg",
+    "parquet": "ik2k/ik_wood_planks128d.jpg", "rug_red": "philipk/pk01_panel_small01red_d.jpg",
+    "metalfloor": "ikbase/ik_floor_met1f.jpg", "metaltrim": "ikbase/ik_wtrimh_64a.jpg",
+    "panelwall": "philipk/pk01_panel03a_d.jpg", "grafloor": "philipk/pk01_gra_floor01_d.jpg",
+    "trimwood": "ik2k/ik_wood_trimh64e.jpg",
 }
 
 addtex("sky", 'texture 0 "textures/sky.png"')
@@ -444,6 +450,50 @@ for name, axis, coord, face, u0, z0 in PANELS:
             facetex[(v, face)] = TEXIDX[name]
 
 
+# --- Détails d'architecture intérieurs : lambris, tapis, poutres au plafond -----------
+WAINSCOT = {"profil": "wainscot", "certificats": "wainscot", "contact": "trimwood", "competences": "panelwall",
+            "galerie": "metaltrim", "leboncoin": "plinth", "portfolioos": "metaltrim", "cube2": "metaltrim"}
+floorpatch = {}
+
+
+def rug(x0, x1, y0, y1, tex):
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            floorpatch[(x, y)] = tex
+
+
+rug(17, 21, 45, 49, "parquet")           # Profil : parquet sous le bureau
+rug(17, 21, 14, 18, "rug_red")           # Certificats : tapis rouge des trophées
+rug(31, 34, 43, 50, "grafloor")          # Compétences : allée centrale entre les baies
+rug(49, 53, 29, 35, "parquet")           # Contact : derrière le comptoir
+rug(10, 12, 20, 51, "grafloor")          # Galerie : allée centrale
+
+
+def beam(room, along, at, z=None):
+    """Poutre de plafond (dessous à 108 u, hors de portée) traversant la salle."""
+    x0, x1, y0, y1 = room.box[:4]
+    zz = FLOOR + H - 1 if z is None else z
+    cells = [(x, at) for x in range(x0, x1)] if along == "x" else [(at, y) for y in range(y0, y1)]
+    for (x, y) in cells:
+        v = idx(x, y, zz)
+        if solid[v] or roomof[v] is not room:
+            continue
+        setshape(x, y, zz, box_edges(0, 8, 2, 6, 5, 8) if along == "x" else box_edges(2, 6, 0, 8, 5, 8), "beam")
+        roomof[v] = room                     # reste « intérieur » pour les faces voisines
+
+
+_rooms = {r.rid: r for r in ROOMS}
+_rooms.update(STANDROOMS)
+for at in (44, 47):
+    beam(_rooms["profil"], "x", at)
+    beam(_rooms["competences"], "x", at)
+for at in (14, 17):
+    beam(_rooms["certificats"], "x", at)
+for at in (49, 51):
+    beam(_rooms["contact"], "y", at)
+for at in (23, 29, 35, 41, 47):
+    beam(_rooms["galerie"], "x", at)
+
 for (wx, wy, wz, wr) in WINDOWS:
     v = idx(wx, wy, wz)
     if any(k[0] == v for k in facetex):
@@ -577,6 +627,10 @@ def face_textures(x, y, z):
                     t = TEXIDX["cliff"]
             else:
                 t = TEXIDX[room.floor if f == 5 else room.ceil if f == 4 else room.wall]
+                if f == 5 and (x, y) in floorpatch:
+                    t = TEXIDX[floorpatch[(x, y)]]          # tapis, allée, estrade
+                elif f < 4 and z == FLOOR and room.rid in WAINSCOT:
+                    t = TEXIDX[WAINSCOT[room.rid]]           # lambris / plinthe intérieure
         out.append(t)
     return tuple(out)
 
@@ -851,6 +905,140 @@ prop("dcp/smplant", 3.8, 48)
 light(6, 48, (255, 160, 110), 170)
 item(I_GREENARMOUR, 8, 46)
 ambience("soundsnap/fan", 6, 48, 120, 50)
+
+# --- Habillage des salles (décors du jeu de base, voir CREDITS.md) -------------------
+# Rien sur les portes, les allées centrales, les objets à ramasser ni les départs :
+# les décors longent les murs ; « block » réserve leurs cellules (pas de point de passage).
+
+
+def outside_ok(x, y):
+    """Décor extérieur : jamais sur un chemin, la place, une bordure ou l'eau."""
+    return groundtex.get((int(x), int(y))) not in ("path", "plaza", "curb", "pond", "pondedge")
+
+
+def particles(x, y, z, ptype, a2=0, a3=0, a4=0):
+    """Particules d'entité du moteur (0 feu, 1 vapeur, 10 eau qui goutte...)."""
+    ENTS.append((W(x), W(y), GROUND + z, ptype, a2, a3, a4, 0, ET_PARTICLES))
+
+
+# Profil (CV) : bureau-bibliothèque, archives, lustre, tapis de parquet
+for y in (46.9, 48.0):
+    prop("mitaman/locker1", 22.6, y, 270, 0, 0)              # armoires d'archives (CV, diplômes)
+prop("mitaman/locker3", 15.35, 48.1, 90, 0, 0)
+prop("objects/lamp02", 16.0, 43.6)                           # lampe de lecture
+prop("dcp/chandelier", 19, 46.5, 0, 84)                      # lustre
+prop("objects/chair01", 20.3, 47.4, 200)
+prop("dcp/smplant", 22.4, 44.2)
+prop("dcp/ivy", 15.2, 45.5, 90, 40)                          # lierre au mur
+light(19, 46.5, (255, 190, 120), 170, 80)
+light(16.5, 46.5, (255, 220, 160), 90, 40)                   # lampe du bureau
+prop("objects/chair01", 17.6, 47.6, 160)
+prop("dcp/vase", 22.5, 43.2)
+prop("dcp/bin", 21.6, 42.4)
+prop("dcp/plant1", 17.4, 49.5)
+prop("xeno/box1", 15.5, 47.0, 20)
+
+# Compétences : salle serveur, baies, tuyaux, grilles, vapeur
+for (x, yaw) in ((30.2, 90), (34.9, 270)):
+    for y in (45.4, 46.5, 47.6):
+        prop("mitaman/locker1", x, y, yaw, 0, 0)            # baies de serveurs
+prop("psionic/barrel2", 36.6, 42.6)
+prop("dcp/valve", 27.3, 48.2, 90, 30)
+prop("dcp/valve", 37.7, 44.7, 270, 30)
+prop("dcp/ventflap", 30.5, 49.7, 180, 70)
+prop("dcp/bulb", 30.2, 44.2, 0, 96)
+prop("dcp/bulb", 34.9, 48.8, 0, 96)
+prop("mitaman/floorgrate1", 32.5, 46.5)
+particles(33, 49.4, 66, 1, 0)                                 # vapeur de la ventilation
+prop("psionic/barrel2", 28.4, 42.5)
+prop("psionic/barrel2", 28.4, 49.5)
+prop("mitaman/locker3", 37.6, 43.5, 270, 0, 0)
+prop("xeno/box2", 37.5, 46.6, 10)
+light(32.5, 44, (90, 150, 255), 160, 70)
+light(32.5, 49, (60, 255, 160), 140, 70)
+
+# Certificats : salle des trophées, vitrines, torches, tapis rouge
+for (x, y) in ((15.5, 14.6), (15.5, 15.6), (22.5, 15.9)):
+    prop("dcp/waterbowl", x, y, 0, 0, 0)                     # coupes sur socle
+prop("dcp/chandelier", 19, 15.5, 0, 84)
+for (x, y, yaw) in ((15.2, 18.2, 90), (22.8, 13.8, 270)):
+    prop("objects/torch", x, y, yaw, 40)
+    particles(x + (0.15 if x < 19 else -0.15), y, 62, 0, 30, 40)    # flamme
+prop("xeno/box2", 21.4, 12.5, 30)
+prop("xeno/box1", 17.5, 12.4, 70)
+prop("dcp/smplant", 16.0, 19.5)
+prop("dcp/candle", 22.5, 17.0)
+light(19, 15.5, (255, 200, 90), 160, 80)
+light(15.4, 18.2, (255, 140, 60), 80, 60)
+light(22.6, 13.8, (255, 140, 60), 80, 60)
+
+# Contact : bureau de poste, casiers à lettres, colis, comptoir
+for x in (48.4, 49.5):
+    prop("mitaman/locker3", x, 35.6, 180, 0, 0)              # casiers à lettres
+prop("dcp/palette", 52.6, 34.0, 90)
+prop("xeno/box1", 52.6, 34.0, 15, 12)                        # colis sur la palette
+prop("dcp/sack", 50.8, 29.2)
+prop("dcp/sack", 49.9, 28.8)
+prop("dcp/hanginlamp", 50.5, 32, 0, 92)
+prop("objects/oillamp", 46.5, 30.0, 90)
+prop("objects/chair01", 51.0, 31.0, 270)
+prop("dcp/bin", 46.5, 35.4)
+prop("dcp/sack", 52.8, 35.2)
+light(50.5, 32, (255, 230, 170), 150, 80)
+
+# Galerie : bancs, plantes et lampes dans l'allée
+for y in (24.5, 36.5, 47.5):
+    prop("objects/bench01", 12.55, y, 90, 0, 0)
+for y in (21.0, 50.0):
+    prop("dcp/smplant", 12.5, y)
+for y in (23, 29, 35, 41, 47):
+    prop("dcp/hanginlamp", 10.5, y, 0, 92)
+# Leboncoin (garage) : machine, fût, caisses, pneus de palette
+prop("aftas/machina/machina1", 4.2, 24.2, 90)
+prop("mapmodels/toca/radioactivedrum", 7.9, 21.0)
+prop("xeno/box1", 3.6, 23.2, 10)
+prop("xeno/box2", 3.7, 22.4, 40)
+light(5.5, 21.5, (255, 170, 90), 120, 70)
+# Magic Shape Generator : ampoules colorées, braseros
+for (x, y, col) in ((3.6, 27.6, (230, 80, 255)), (3.6, 31.4, (80, 220, 255))):
+    prop("dcp/bulb", x, y, 0, 90)
+    light(x + 0.6, y, col, 110, 85)
+for (x, y) in ((8.3, 27.6), (8.3, 31.4)):
+    particles(x, y, 30, 0, 35, 45)                           # feu des braseros
+# Mineport : rochers, arbuste, torches de mine
+prop("razgriz/rocks/set2/1", 7.9, 34.0, 30)
+prop("aftas/arvores/arp", 3.8, 37.5)
+prop("razgriz/objects/torch", 8.6, 36.8, 270, 36)
+particles(8.5, 36.8, 60, 0, 25, 35)
+# Cube 2 (arène) : caisses empilées, fût
+prop("xeno/box2", 3.6, 44.2, 20)
+prop("xeno/box1", 8.3, 39.6, 70)
+prop("mapmodels/toca/radioactivedrum", 3.7, 39.6)
+light(6, 43.2, (255, 80, 60), 100, 90)
+# Portfolio OS : postes, lampes, fauteuil
+prop("objects/lamp02", 8.4, 45.6)
+prop("objects/chair01", 5.0, 48.0, 90)
+prop("dcp/bulb", 6.0, 50.4, 0, 90)
+light(6, 49.5, (255, 140, 200), 100, 80)
+
+# Extérieurs : rochers, bancs près de l'étang, lampadaires, arbres
+for (x, y, m, yaw) in ((23.5, 53.0, "razgriz/rocks/set1/4", 0), (34.5, 61.0, "razgriz/rocks/set1/5", 40),
+                       (2.8, 12.5, "razgriz/rocks/set1/6", 80), (60.5, 13.5, "razgriz/rocks/set1/7", 120),
+                       (44.0, 61.0, "razgriz/rocks/set2/2", 10), (17.0, 61.0, "razgriz/rocks/set2/4", 200),
+                       (60.5, 56.0, "razgriz/rocks/set2/5", 90), (14.0, 5.0, "razgriz/rocks/set1/8", 30)):
+    if outside_ok(x, y):
+        prop(m, x, y, yaw, 0, 1)
+for (x, y, yaw) in ((27.5, 60.6, 0), (30.5, 51.6, 180)):
+    if outside_ok(x, y):
+        prop("objects/bench01", x, y, yaw, 0, 0)
+for (x, y) in ((24.4, 39.4), (39.6, 39.4), (24.4, 22.6), (39.6, 22.6)):
+    if outside_ok(x, y):
+        prop("aftas/lampada", x, y, 0, 0, 0)
+        light(x, y, (255, 220, 160), 120, 70)
+for (x, y, m) in ((50.5, 58.5, "aftas/arvores/arg"), (8.5, 52.5, "aftas/arvores/arp"), (56.5, 41.5, "aftas/arvores/arg"),
+                  (19.5, 8.5, "aftas/arvores/arp")):
+    if outside_ok(x, y):
+        prop(m, x, y, 0, 0, 1)
 
 # --- Phases de parkour : jump pads et téléporteurs du jeu de base -------------
 JUMPPAD, TELEPORT, TELEDEST = 23, 19, 20

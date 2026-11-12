@@ -330,6 +330,12 @@
   }
   Module.pfLock = requestLock;          // appelé par le jeu quand tous les menus se ferment
   Module.pfUnlock = releaseLock;        // appelé par le jeu quand un menu s'ouvre en jeu
+  // Progression -> page parente (fenêtre « rançon » du portfolio)
+  Module.pfProgress = function (fragments, total, boss) {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'cube2:progress', fragments: fragments, total: total, boss: boss }, location.origin);
+    }
+  };
   Module.pfSkin = function (n) { try { localStorage.setItem('cube2.skin', String(n)); } catch (e) {} };
 
   function sendPos(e) {

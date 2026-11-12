@@ -26,18 +26,22 @@ phases de parkour, des combats d'arène et un boss final.
   d'origine (arbres, buissons, puits, bancs, réverbères, lampes au sol, roseaux), de l'herbe
   animée du moteur (`autograss`) sur les pelouses et les collines, un étang et un ruisseau
   peu profond (eau du jeu de base, fonds en pente douce : on en ressort partout) ; chaque
-  pièce est habillée de petits décors du jeu de base (casiers, caisses, tonneaux, plantes,
-  bougies, cartons…) :
+  pièce est habillée densément de décors du jeu de base selon son thème (mobilier, armoires,
+  baies, caisses, tonneaux, plantes, lustres, torches, tuyaux, grilles…), avec lambris,
+  tapis ou allées au sol, poutres au plafond, lumières colorées propres à chaque salle et
+  particules du moteur (flammes, vapeur) ; dehors, rochers, arbres, bancs près de l'étang et
+  lampadaires aux angles de la place. Les décors longent les murs : portes, allées, objets,
+  départs, arènes et parcours restent libres (vérifié par la sonde de blocage) :
 
   | Lieu | Thème | Éléments |
   |---|---|---|
   | Place d'accueil | pavés, réverbères, puits | panneau d'accueil, départs des joueurs |
-  | Profil | bureau / bibliothèque | papier peint, parquet, table, chaise, lampe ; ambiance feu de cheminée |
-  | Compétences | salle serveur | panneaux informatiques, consoles, biotanks ; bourdonnement |
-  | Galerie des projets | 5 stands | garage Leboncoin, néons et lampes Magic Shape, voxels Mineport à ciel ouvert, arène Cube 2, bureau Ubuntu Portfolio OS |
-  | Certificats | salle des trophées | vases, coffre, lanterne ; fontaine |
+  | Profil | bureau / bibliothèque | lambris, parquet, poutres, lustre, armoires d'archives, bureau et chaises, lampe de lecture, lierre ; ambiance feu de cheminée |
+  | Compétences | salle serveur | deux rangées de baies, allée en caillebotis, vannes, ventilation qui fume, ampoules, lumières bleue et verte, consoles, biotanks ; bourdonnement |
+  | Galerie des projets | 5 stands | allée centrale, poutres, suspensions, bancs ; garage Leboncoin (machine, fût), ampoules colorées et braseros Magic Shape, rochers et torche Mineport à ciel ouvert, caisses de l'arène Cube 2, bureau Ubuntu Portfolio OS |
+  | Certificats | salle des trophées | tapis rouge, coupes sur socle, lustre, torches allumées, vases, coffre, lanterne ; fontaine |
   | Tux World | banquise à ciel ouvert | neige, blocs de glace, neige qui tombe ; vent |
-  | Contact | bureau de poste | sacs postaux, coffre, panneau ; vent |
+  | Contact | bureau de poste | casiers à lettres, comptoir, colis sur palette, sacs postaux, suspension, lampe à huile ; vent |
   | Colisée | arène de combat | murets, piliers-abris, armes et munitions |
 
 - **Progression** (10 fragments du portfolio, annoncés dans la console) :
@@ -118,6 +122,14 @@ sans parent). Le navigateur de serveurs, le vote de mode/carte, *master* et *dis
 été retirés. Un clic hors du menu le ferme et reprend la visite. Le pseudo est celui de la
 session du portfolio (`?name=`) : `/name` est refusé et le serveur ignore tout changement de
 nom après la connexion.
+
+- **Progression vers la page parente** : dans une iframe (`window.parent !== window`), le jeu
+  envoie `postMessage({ type: 'cube2:progress', fragments, total: 10, boss }, location.origin)`
+  avec `boss` = `'locked'` (fragments incomplets), `'alive'` (KernelPanic est apparu) ou
+  `'dead'` (boss vaincu : déchiffrement côté portfolio). Envoyé à l'entrée dans la partie
+  (état courant), à chaque fragment, à l'apparition du boss et à sa mort
+  (`Module.pfProgress` dans `web/portfolio.js`, appelé par `sendprogress()` du module
+  portfolio).
 
 - **Secours** : `R` (ou *Respawn*) fait réapparaître tout de suite sur un départ de la place
   d'accueil, même coincé ou en spectateur (commandes d'origine `suicide` puis `respawn`).

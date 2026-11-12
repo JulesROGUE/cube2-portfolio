@@ -89,7 +89,6 @@ packages/models/dcp/groundlamp/
 packages/models/dcp/leafs/
 packages/models/dcp/tree2/
 packages/models/dcp/tree3/
-packages/models/dcp/palmtree/
 packages/models/dcp/streetlamp/
 packages/models/dcp/Readme.txt
 packages/models/dcp/bin/
@@ -106,6 +105,31 @@ packages/models/psionic/Psionic permission.txt
 packages/models/xeno/box1/
 packages/models/xeno/box2/
 packages/models/xeno/Xeno permission.txt
+# habillage des salles
+packages/models/mitaman/floorgrate1/
+packages/models/dcp/ivy/
+packages/models/dcp/bulb/
+packages/models/dcp/hanginlamp/
+packages/models/dcp/ventflap/
+packages/models/dcp/waterbowl/
+packages/models/objects/lamp02/
+packages/models/objects/torch/
+packages/models/objects/oillamp/
+packages/models/aftas/machina/
+packages/models/aftas/lampada/
+packages/models/aftas/arvores/
+packages/models/mapmodels/toca/radioactivedrum/
+packages/models/mapmodels/toca/license.txt
+packages/models/razgriz/rocks/
+packages/models/razgriz/objects/torch/
+packages/ik2k/ik_woodv256a.jpg
+packages/ik2k/ik_wood_planks128d.jpg
+packages/ik2k/ik_wood_trimh64e.jpg
+packages/philipk/pk01_panel_small01red_d.jpg
+packages/philipk/pk01_panel03a_d.jpg
+packages/philipk/pk01_gra_floor01_d.jpg
+packages/ikbase/ik_floor_met1f.jpg
+packages/ikbase/ik_wtrimh_64a.jpg
 packages/models/objects/table01/
 packages/models/objects/chair01/
 packages/models/objects/lamp01/

@@ -329,19 +329,20 @@ enum
     PART_SMOKE,
     PART_STEAM,
     PART_FLAME,
-    PART_STREAK,
-    PART_RAIL_TRAIL, PART_PULSE_SIDE, PART_PULSE_FRONT,
-    PART_LIGHTNING,
-    PART_EXPLOSION, PART_PULSE_BURST,
+    // PORTFOLIO : types de particules de Sauerbraten (jeu de la visite)
+    PART_FIREBALL1, PART_FIREBALL2, PART_FIREBALL3,
+    PART_STREAK, PART_LIGHTNING,
+    PART_EXPLOSION, PART_EXPLOSION_BLUE,
     PART_SPARK, PART_EDIT,
     PART_SNOW,
-    PART_RAIL_MUZZLE_FLASH, PART_PULSE_MUZZLE_FLASH,
+    PART_MUZZLE_FLASH1, PART_MUZZLE_FLASH2, PART_MUZZLE_FLASH3,
     PART_HUD_ICON,
     PART_HUD_ICON_GREY,
     PART_TEXT,
     PART_METER, PART_METER_VS,
     PART_LENS_FLARE
 };
+#define PART_TEXT_ICON PART_TEXT
 
 extern bool canaddparticles();
 extern void regular_particle_splash(int type, int num, int fade, const vec &p, int color = 0xFFFFFF, float size = 1.0f, int radius = 150, int gravity = 2, int delay = 0);

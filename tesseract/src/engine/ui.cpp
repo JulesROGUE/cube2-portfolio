@@ -788,6 +788,13 @@ namespace UI
             resetstate();
         }
 
+        // PORTFOLIO : le point (coordonnées du monde de l'interface) est-il dans une fenêtre ?
+        bool windowat(float cx, float cy)
+        {
+            loopwindows(w, { if(cx >= w->x && cx < w->x + w->w && cy >= w->y && cy < w->y + w->h) return true; });
+            return false;
+        }
+
         bool show(Window *w)
         {
             if(children.find(w) >= 0) return false;
@@ -3483,6 +3490,19 @@ namespace UI
     void resetcursor()
     {
         cursorx = cursory = 0.5f;
+    }
+
+    // PORTFOLIO : curseur natif du navigateur (position absolue, fractions du canvas)
+    void setcursorpos(float x, float y)
+    {
+        cursorx = clamp(x, 0.0f, 1.0f);
+        cursory = clamp(y, 0.0f, 1.0f);
+    }
+
+    bool cursorinwindow()
+    {
+        if(!hascursor()) return false;
+        return world->windowat(cursorx*world->w, cursory*world->h);
     }
 
     bool movecursor(int dx, int dy)

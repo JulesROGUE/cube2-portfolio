@@ -2674,6 +2674,10 @@ void writecrosshairs(stream *f)
 
 void drawcrosshair(int w, int h)
 {
+#ifdef __EMSCRIPTEN__
+    extern bool grabinput;
+    if(UI::hascursor() && !grabinput) return;   // PORTFOLIO : curseur natif dans les menus
+#endif
     bool windowhit = UI::hascursor();
     if(!windowhit && (hidehud || mainmenu)) return; //(hidehud || player->state==CS_SPECTATOR || player->state==CS_DEAD)) return;
 

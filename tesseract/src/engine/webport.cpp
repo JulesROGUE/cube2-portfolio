@@ -52,3 +52,48 @@ void webport_glfuncs()
     glVertexAttrib4usv_ = web4usv;
 }
 #endif
+
+// --- Interface avec la coquille web (web/portfolio.js) ---------------------------
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+extern "C" EMSCRIPTEN_KEEPALIVE void pf_execute(const char *script)
+{
+    if(script && *script) execute(script);
+}
+
+// 1 = pointer lock obtenu (clic dans le canvas), 0 = perdu (Échap, focus...)
+extern bool grabinput;
+extern void inputgrab(bool on, bool delay);
+extern "C" EMSCRIPTEN_KEEPALIVE void pf_grab(int on)
+{
+    if((on != 0) != grabinput) inputgrab(grabinput = on != 0, false);
+}
+
+// mouvements relatifs (pointer lock), cumulés puis appliqués une fois par image
+extern int pfmousedx, pfmousedy;
+extern "C" EMSCRIPTEN_KEEPALIVE void pf_mousemove(int dx, int dy)
+{
+    pfmousedx += dx;
+    pfmousedy += dy;
+}
+
+// curseur natif (souris libre) : position absolue en fractions du canvas
+extern "C" EMSCRIPTEN_KEEPALIVE void pf_mousepos(float x, float y) { UI::setcursorpos(x, y); }
+extern "C" EMSCRIPTEN_KEEPALIVE int pf_guiopen() { return UI::hascursor() ? 1 : 0; }
+extern "C" EMSCRIPTEN_KEEPALIVE int pf_guihover() { return UI::cursorinwindow() ? 1 : 0; }
+
+extern "C" EMSCRIPTEN_KEEPALIVE void pf_resize(int w, int h)
+{
+    defformatstring(cmd, "screenres %d %d", w, h);
+    execute(cmd);
+}
+
+// `js "..."` : message vers la coquille web (Module.interop)
+void js(const char *script)
+{
+    char *result = (char *)EM_ASM_INT({ return Module.interop(UTF8ToString($0)); }, script);
+    if(result) stringret(result);
+}
+COMMAND(js, "s");
+#endif

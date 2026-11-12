@@ -414,8 +414,17 @@ void textinput(bool on, int mask)
 VAR(sdl_xgrab_bug, 0, 0, 1);
 #endif
 
+// PORTFOLIO : mouvements ignorés juste après la capture (premier delta parfois énorme)
+int pfskipmotion = 0;
+
 void inputgrab(bool on, bool delay = false)
 {
+    if(on) pfskipmotion = 2;
+#ifdef __EMSCRIPTEN__
+    // La coquille web gère seule le pointer lock et le curseur (natif dans les menus).
+    shouldgrab = delay;
+    return;
+#endif
 #ifdef SDL_VIDEO_DRIVER_X11
     bool wasrelativemouse = relativemouse;
 #endif
@@ -593,6 +602,10 @@ void setupscreen()
         initwindowpos = true;
     }
 
+#ifdef __EMSCRIPTEN__
+    scr_w = winw = clamp(emscripten_run_script_int("Module['desiredWidth']"), SCR_MINW, SCR_MAXW);
+    scr_h = winh = clamp(emscripten_run_script_int("Module['desiredHeight']"), SCR_MINH, SCR_MAXH);
+#endif
     SDL_GL_ResetAttributes();
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 #if !defined(WIN32) && !defined(__APPLE__)
@@ -799,9 +812,18 @@ static void checkmousemotion(int &dx, int &dy)
     }
 }
 
+#ifdef __EMSCRIPTEN__
+static bool pfleftdownframe = false, pfpendingleftup = false;
+int pfmousedx = 0, pfmousedy = 0;
+#endif
+
 void checkinput()
 {
     if(interceptkeysym) clearinterceptkey();
+#ifdef __EMSCRIPTEN__
+    pfleftdownframe = false;
+    if(pfpendingleftup) { pfpendingleftup = false; processkey(-1, false); }
+#endif
     //int lasttype = 0, lastbut = 0;
     bool mousemoved = false;
     int focused = 0;
@@ -809,7 +831,11 @@ void checkinput()
     {
         SDL_Event &event = events.remove();
 
+#ifdef __EMSCRIPTEN__
+        focused = 0;   // la capture suit uniquement le pointer lock (pf_grab)
+#else
         if(focused && event.type!=SDL_WINDOWEVENT) { if(grabinput != (focused>0)) inputgrab(grabinput = focused>0, shouldgrab); focused = 0; }
+#endif
 
         switch(event.type)
         {
@@ -878,6 +904,9 @@ void checkinput()
                 break;
 
             case SDL_MOUSEMOTION:
+#ifdef __EMSCRIPTEN__
+                break;   // mouvements : pf_mousemove (capturé) ou pf_mousepos (menus)
+#endif
                 if(grabinput)
                 {
                     int dx = event.motion.xrel, dy = event.motion.yrel;
@@ -890,6 +919,23 @@ void checkinput()
 
             case SDL_MOUSEBUTTONDOWN:
             case SDL_MOUSEBUTTONUP:
+#ifdef __EMSCRIPTEN__
+                if(!grabinput)
+                {
+                    // souris libre : les clics ne vont qu'aux menus ; hors fenêtre, ils ferment les menus
+                    if(!UI::hascursor()) break;
+                    if(!UI::cursorinwindow())
+                    {
+                        if(event.button.state == SDL_PRESSED && event.button.button == SDL_BUTTON_LEFT) execute("hideallui");
+                        break;
+                    }
+                }
+                if(event.button.button == SDL_BUTTON_LEFT)
+                {
+                    if(event.button.state == SDL_PRESSED) pfleftdownframe = true;
+                    else if(pfleftdownframe) { pfpendingleftup = true; break; }
+                }
+#endif
                 //if(lasttype==event.type && lastbut==event.button.button) break; // why?? get event twice without it
                 switch(event.button.button)
                 {
@@ -914,7 +960,29 @@ void checkinput()
                 break;
         }
     }
+#ifdef __EMSCRIPTEN__
+    // menu ouvert en jeu -> on libère le pointer lock ; menus fermés -> on reprend la capture
+    {
+        static bool pfwasmenu = false;
+        bool menu = UI::hascursor();
+        if(grabinput && menu) EM_ASM({ if (Module.pfUnlock) Module.pfUnlock(); });
+        else if(!grabinput && pfwasmenu && !menu) EM_ASM({ if (Module.pfLock) Module.pfLock(); });
+        pfwasmenu = menu;
+    }
+    if(pfmousedx || pfmousedy)
+    {
+        int dx = pfmousedx, dy = pfmousedy;
+        pfmousedx = pfmousedy = 0;
+        if(grabinput && pfskipmotion <= 0 && abs(dx) < 4000 && abs(dy) < 4000)
+        {
+            if(!UI::movecursor(dx, dy)) mousemove(dx, dy);
+            mousemoved = true;
+        }
+        if(pfskipmotion > 0) pfskipmotion--;
+    }
+#else
     if(focused) { if(grabinput != (focused>0)) inputgrab(grabinput = focused>0, shouldgrab); focused = 0; }
+#endif
     if(mousemoved) resetmousemotion();
 }
 
@@ -1278,6 +1346,9 @@ int main(int argc, char **argv)
         writecfg(game::restoreconfig());
     }
     execfile(game::autoexec(), false);
+#ifdef __EMSCRIPTEN__
+    emscripten_run_script("Module['autoexec']()");
+#endif
 
     identflags &= ~IDF_PERSIST;
 
@@ -1312,7 +1383,14 @@ int main(int argc, char **argv)
     initmumble();
     resetfpshistory();
 
+#ifdef __EMSCRIPTEN__
+    inputgrab(grabinput = false);   // capture au premier clic seulement
+    emscripten_run_script("Module['setPlayerModels']()");
+    emscripten_run_script("Module['loadDefaultMap']()");
+    EM_ASM({ Module.onGameReady(); });
+#else
     inputgrab(grabinput = true);
+#endif
     ignoremousemotion();
 
 #ifdef __EMSCRIPTEN__

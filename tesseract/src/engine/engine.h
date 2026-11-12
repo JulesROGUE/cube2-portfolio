@@ -735,6 +735,8 @@ extern void cleanupsky();
 
 namespace UI
 {
+    void setcursorpos(float x, float y);
+    bool cursorinwindow();
     bool hascursor();
     void getcursorpos(float &x, float &y);
     void resetcursor();

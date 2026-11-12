@@ -17,6 +17,9 @@ for line in open(src, encoding="utf-8"):
     cmd = w[0]
     if cmd in ("skybox", "lightprecision", "watercolour"):
         continue                       # ciel procédural de Tesseract (atmo) ; pas de lightmaps
+    if cmd == "autograss":
+        out.append(line.replace("autograss", "texgrass", 1))
+        continue
     if cmd == "skylight":
         out.append("skylight 0x404850")
         continue

@@ -199,7 +199,7 @@
     // Crochets appelés par le moteur (hérités de BananaBread / Sour)
     autoexec: function () {
       ready = true;
-      exec('exec "data/portfolio.cfg"');
+      exec('exec "config/portfolio.cfg"');   // moteur Tesseract : scripts dans config/
       exec('pfsetname "' + playerName + '"');   // pseudo de la session, non modifiable ensuite
       var skin = null;
       try { skin = localStorage.getItem('cube2.skin'); } catch (e) {}

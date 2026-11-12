@@ -3,7 +3,9 @@
 
 // ET_*: the only static entity types dictated by the engine... rest are gamecode dependent
 
-enum { ET_EMPTY=0, ET_LIGHT, ET_MAPMODEL, ET_PLAYERSTART, ET_ENVMAP, ET_PARTICLES, ET_SOUND, ET_SPOTLIGHT, ET_DECAL, ET_GAMESPECIFIC };
+// PORTFOLIO : numérotation de Sauerbraten (objets du jeu à partir de 8, comme dans la carte et
+// le serveur de la visite) ; les décalques d'entité de Tesseract, inutilisés, sont repoussés.
+enum { ET_EMPTY=0, ET_LIGHT, ET_MAPMODEL, ET_PLAYERSTART, ET_ENVMAP, ET_PARTICLES, ET_SOUND, ET_SPOTLIGHT, ET_GAMESPECIFIC, ET_DECAL = 127 };
 
 struct entity                                   // persistent map entity
 {
@@ -27,10 +29,20 @@ enum
     EF_NOPICKUP   = 1<<9
 };
 
+// PORTFOLIO : « lumière d'entité » de Sauerbraten (le rendu différé de Tesseract éclaire
+// les modèles lui-même ; gardée pour la compatibilité du code du jeu)
+struct entitylight
+{
+    vec color, dir;
+    int millis;
+    entitylight() : color(1, 1, 1), dir(0, 0, 1), millis(-1) {}
+};
+
 struct extentity : entity                       // part of the entity that doesn't get saved to disk
 {
     int flags;
     extentity *attached;
+    entitylight light;
 
     extentity() : flags(0), attached(NULL) {}
 
@@ -53,7 +65,7 @@ enum { CS_ALIVE = 0, CS_DEAD, CS_SPAWNING, CS_LAGGED, CS_EDITING, CS_SPECTATOR }
 
 enum { PHYS_FLOAT = 0, PHYS_FALL, PHYS_SLIDE, PHYS_SLOPE, PHYS_FLOOR, PHYS_STEP_UP, PHYS_STEP_DOWN, PHYS_BOUNCE };
 
-enum { ENT_PLAYER = 0, ENT_CAMERA, ENT_BOUNCE };
+enum { ENT_PLAYER = 0, ENT_AI, ENT_INANIMATE, ENT_CAMERA, ENT_BOUNCE };   // PORTFOLIO : types de Sauerbraten (bots)
 
 enum { COLLIDE_NONE = 0, COLLIDE_ELLIPSE, COLLIDE_OBB, COLLIDE_TRI };
 
@@ -168,6 +180,7 @@ struct ragdolldata;
 
 struct dynent : physent                         // animated characters, or characters that can receive input
 {
+    entitylight light;                          // PORTFOLIO : compatibilité Sauerbraten
     bool k_left, k_right, k_up, k_down;         // see input code
 
     animinterpinfo animinterp[MAXANIMPARTS];

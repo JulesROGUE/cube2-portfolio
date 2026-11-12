@@ -4,7 +4,7 @@ WEB_OUT ?= ../dist-tess/cube2
 BUILD   ?= build
 EMCXX ?= em++
 EMCC  ?= emcc
-INCLUDES = -Isrc/shared -Isrc/engine -Isrc/game -Isrc/enet/include
+INCLUDES = -Isrc/shared -Isrc/engine -Isrc/fpsgame -Isrc/enet/include
 COMMONFLAGS = -fsigned-char -fno-exceptions -fno-rtti -w
 WEB_OPT ?= -O2
 WEB_DEBUG ?= --profiling-funcs
@@ -20,10 +20,10 @@ CLIENT_SRCS = \
 	engine/renderparticles.cpp engine/rendersky.cpp engine/rendertext.cpp engine/renderva.cpp \
 	engine/server.cpp engine/serverbrowser.cpp engine/shader.cpp engine/sound.cpp engine/stain.cpp \
 	engine/texture.cpp engine/ui.cpp engine/water.cpp engine/world.cpp engine/worldio.cpp engine/webport.cpp \
-	game/ai.cpp game/client.cpp game/entities.cpp game/game.cpp game/render.cpp game/scoreboard.cpp \
-	game/server.cpp game/waypoint.cpp game/weapon.cpp
+	fpsgame/ai.cpp fpsgame/client.cpp fpsgame/entities.cpp fpsgame/fps.cpp fpsgame/nosp.cpp fpsgame/render.cpp \
+	fpsgame/scoreboard.cpp fpsgame/server.cpp fpsgame/waypoint.cpp fpsgame/weapon.cpp fpsgame/portfolio.cpp fpsgame/tessgame.cpp
 WEB_OBJS = $(addprefix $(BUILD)/web/,$(CLIENT_SRCS:.cpp=.o)) $(addprefix $(BUILD)/web/enet/,$(ENET_SRCS:.c=.o))
-EXPORTS = "['_main','_malloc','_free']"
+EXPORTS = "['_main','_malloc','_free','_pf_execute','_pf_resize','_pf_grab','_pf_getyaw','_pf_getpitch','_pf_mousemove','_pf_mousepos','_pf_guiopen','_pf_guihover']"
 RUNTIME = "['ccall','cwrap','UTF8ToString','FS','ENV','callMain']"
 WEB_LDFLAGS = $(WEB_OPT) $(WEB_PORTS) \
 	-sMAX_WEBGL_VERSION=2 -sMIN_WEBGL_VERSION=2 -sFULL_ES3=1 \
@@ -32,8 +32,8 @@ WEB_LDFLAGS = $(WEB_OPT) $(WEB_PORTS) \
 	-sEXPORTED_FUNCTIONS=$(EXPORTS) -sEXPORTED_RUNTIME_METHODS=$(RUNTIME) \
 	-sMODULARIZE=0 -sENVIRONMENT=web -sINVOKE_RUN=1 -sERROR_ON_UNDEFINED_SYMBOLS=1 -lidbfs.js
 .PHONY: web clean
-web: $(WEB_OUT)/tess.js
-$(WEB_OUT)/tess.js: $(WEB_OBJS)
+web: $(WEB_OUT)/cube2.js
+$(WEB_OUT)/cube2.js: $(WEB_OBJS)
 	@mkdir -p $(WEB_OUT)
 	$(EMCXX) $(WEB_OBJS) -o $@ $(WEB_LDFLAGS) $(WEB_DEBUG)
 $(BUILD)/web/%.o: src/%.cpp

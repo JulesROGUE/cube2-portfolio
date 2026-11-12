@@ -23,10 +23,7 @@ void fixmapname(char *name)
 
 static void fixent(entity &e, int version)
 {
-    if(version <= 0)
-    {
-        if(e.type >= ET_DECAL) e.type++;
-    }
+    // PORTFOLIO : pas de renumérotation (voir ET_DECAL dans ents.h)
 }
 
 static bool loadmapheader(stream *f, const char *ogzname, mapheader &hdr, octaheader &ohdr)

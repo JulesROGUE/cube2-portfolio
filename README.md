@@ -26,22 +26,28 @@ phases de parkour, des combats d'arène et un boss final.
   d'origine (arbres, buissons, puits, bancs, réverbères, lampes au sol, roseaux), de l'herbe
   animée du moteur (`autograss`) sur les pelouses et les collines, un étang et un ruisseau
   peu profond (eau du jeu de base, fonds en pente douce : on en ressort partout) ; chaque
-  pièce est habillée densément de décors du jeu de base selon son thème (mobilier, armoires,
-  baies, caisses, tonneaux, plantes, lustres, torches, tuyaux, grilles…), avec lambris,
-  tapis ou allées au sol, poutres au plafond, lumières colorées propres à chaque salle et
-  particules du moteur (flammes, vapeur) ; dehors, rochers, arbres, bancs près de l'étang et
-  lampadaires aux angles de la place. Les décors longent les murs : portes, allées, objets,
-  départs, arènes et parcours restent libres (vérifié par la sonde de blocage) :
+  pièce a un **point focal** visible dès l'entrée, construit en géométrie (`meuble()` dans
+  `gen_map.py` : boîtes à l'unité près, découpées en sous-cubes de l'octree) : bureaux,
+  bibliothèques, baies de serveurs, guichet, podium, comptoirs de stands, suspensions. Les
+  hauteurs sont un peu au-dessus du réel (bureau 12 unités, baies 36, bibliothèques 40 à
+  56) car l'architecture de la carte est à double échelle par rapport au joueur (15 unités).
+  S'y ajoutent des décors du jeu de base, lambris, tapis, poutres, éclairage coloré par
+  salle et flammes de braseros ; dehors, rochers, arbres et bancs près de l'étang.
+  `verifier_decors()` arrête la génération si un décor flotte (ni posé sur le sol, le
+  relief ou un meuble, ni suspendu à un plafond), entre dans un mur, si une flamme ne sort
+  pas d'un brasero ou d'une bougie, ou si un objet ou un départ touche un meuble ; les
+  boîtes englobantes sont lues dans les modèles (md2 / md3 / obj, `mdlscale` / 4).
+  Portes, allées, objets, départs, arènes et parcours restent libres (sonde de blocage) :
 
   | Lieu | Thème | Éléments |
   |---|---|---|
   | Place d'accueil | pavés, réverbères, puits | panneau d'accueil, départs des joueurs |
-  | Profil | bureau / bibliothèque | lambris, parquet, poutres, lustre, armoires d'archives, bureau et chaises, lampe de lecture, lierre ; ambiance feu de cheminée |
-  | Compétences | salle serveur | deux rangées de baies, allée en caillebotis, vannes, ventilation qui fume, ampoules, lumières bleue et verte, consoles, biotanks ; bourdonnement |
-  | Galerie des projets | 5 stands | allée centrale, poutres, suspensions, bancs ; garage Leboncoin (machine, fût), ampoules colorées et braseros Magic Shape, rochers et torche Mineport à ciel ouvert, caisses de l'arène Cube 2, bureau Ubuntu Portfolio OS |
-  | Certificats | salle des trophées | tapis rouge, coupes sur socle, lustre, torches allumées, vases, coffre, lanterne ; fontaine |
+  | Profil | bureau / bibliothèque | grand bureau à trois écrans face à l'entrée, bibliothèques murales et rayonnages au milieu, coin lecture, armoires d'archives, suspensions ; ambiance feu de cheminée |
+  | Compétences | salle serveur | quatre rangées de baies plus hautes que le joueur, chemins de câbles, allée froide éclairée en bleu et vert, allées chaudes en rouge, biotanks ; bourdonnement |
+  | Galerie des projets | 5 stands | colonnes et bandeaux entre les stands, totem d'écrans, suspensions, bancs ; comptoir d'accueil avec écran par stand ; voiture rouge et établi Leboncoin, borne et sculpture de formes Magic Shape, arbre et établi voxels Mineport, borne d'arcade Cube 2, bureau à trois écrans Portfolio OS |
+  | Certificats | salle des trophées | podium à trois marches avec coupes, kakémonos, braseros allumés, vitrines éclairées le long des murs, tapis rouge ; fontaine |
   | Tux World | banquise à ciel ouvert | neige, blocs de glace, neige qui tombe ; vent |
-  | Contact | bureau de poste | casiers à lettres, comptoir, colis sur palette, sacs postaux, suspension, lampe à huile ; vent |
+  | Contact | bureau de poste | guichet avec hygiaphone et terminal, casiers de tri, rayonnage à colis, sacs postaux, banc d'attente, suspensions ; vent |
   | Colisée | arène de combat | murets, piliers-abris, armes et munitions |
 
 - **Progression** (10 fragments du portfolio, annoncés dans la console) :

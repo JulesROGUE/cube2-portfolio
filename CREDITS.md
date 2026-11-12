@@ -36,16 +36,14 @@ convertis en JPEG, reflets d'environnement (envmap) retirés des `.cfg` des mod�
 | Objets : munitions, santé, armure, boost, quad, projectiles, débris, téléporteur | Équipe Sauerbraten / makkE | CC BY-NC-SA (`models/ammo/license.txt`…) |
 | Monstres : rat (Ratamahatta), slith, bauul, hellpig | Auteurs Quake II indiqués dans chaque readme (rat/bauul : non commercial, crédit ; hellpig : libre avec crédit ; slith : libre redistribution) | readme de chaque dossier |
 | Décors `models/dcp` (plantes, bancs, consoles, tonneaux, piliers, arbres, réverbères, roseaux, poubelles, cartons, palettes, bougies…) | Dietmar « dcp » Pier | libre pour les cartes Cube (`Readme.txt`) |
-| Décors `models/mitaman/locker1`, `locker3`, `floorgrate1` (casiers, grille) | Mike « MitaMAN » Poeschl | libre, crédit demandé (`locker1.txt`, `locker3.txt`, `floorgrate1.txt`) |
-| Décors `models/psionic/barrel2`, `crate4` (tonneau, caisse) | Psionic | libre, y compris commercial, crédit apprécié (`Psionic permission.txt`) |
-| Décors `models/xeno/box1`, `box2` (caisses en bois) | Matthias « Xeno » Breuer | « Feel free to do whatever you want with those » (`Xeno permission.txt`) |
-| Décors `models/objects` (table, chaise, lampes, lampe à huile, torche, panneau, wagonnet, lanterne, puits, banc) | makkE, Kurtis Kesler | CC BY-NC-SA 2.5 |
+| Décor `models/mitaman/locker1` (armoires) | Mike « MitaMAN » Poeschl | libre, crédit demandé (`locker1.txt`) |
+| Décor `models/psionic/barrel2` (tonneau) | Psionic | libre, y compris commercial, crédit apprécié (`Psionic permission.txt`) |
+| Décor `models/xeno/box1` (caisse en bois) | Matthias « Xeno » Breuer | « Feel free to do whatever you want with those » (`Xeno permission.txt`) |
+| Décors `models/objects` (chaise, puits, banc) | makkE, Kurtis Kesler | CC BY-NC-SA 2.5 |
 | Eau : `golgotha/water2` | Jeu Golgotha (art versé au domaine public, readme fourni) | libre usage non commercial |
 | Eau : `textures/water*`, `waterfall*`, reflets `caustics` ; herbe animée `textures/grass.png` | Équipe Sauerbraten | licence du jeu |
-| Décors `models/aftas` (`caixa`, `machina`, `lampada`, `arvores`) | Jésus « aftasardem » Maia | libre pour les cartes Sauerbraten/Cube, sans profit, crédit (`aftasardem licence.txt` fourni) |
-| Décor `models/mapmodels/toca/radioactivedrum` (fût) | Alejandro V. « Toca » García (AssaultCube) | CC BY-NC-SA (`license.txt` fourni) |
+| Décor `models/aftas/caixa` | Jésus « aftasardem » Maia | libre pour les cartes Sauerbraten/Cube, sans profit, crédit (`aftasardem licence.txt` fourni) |
 | Décors `models/razgriz/rocks/set1`, `set2` (rochers) | 3DMaesen (Sketchfab), textures adaptées par RaZgRiZ | CC BY 4.0 (`license.txt` fourni) |
-| Décor `models/razgriz/objects/torch` (torche) | Plasmaernst (Sketchfab), adapté par Snipergoth. et RaZgRiZ | CC BY 4.0 (`license.txt` fourni) |
 | Textures `ik2k`, `ikbase` | Iikka Keränen | distribution libre non commerciale, crédit |
 | Textures `tech1soc` | Sock | crédit demandé (readme fourni) |
 | Textures `philipk` | Philip Klevestav (set PK01) | libres de modification (readme fourni) |
@@ -62,6 +60,7 @@ explicite, n'est pas repris.
 
 Générés par `tools/gen_assets.py` (licence zlib du projet) : panneaux muraux avec le
 texte du portfolio, textures de blocs façon voxels (Mineport), neige et glace (Tux World),
+textures du mobilier (dos de livres, baies de serveurs, écrans, casiers de tri, carrosserie),
 fond d'écran du bureau Portfolio OS, vignette de la carte. La carte elle-même
 (`portfolio.ogz`, `.cfg`, `.wpt`) est générée par `tools/gen_map.py`.
 

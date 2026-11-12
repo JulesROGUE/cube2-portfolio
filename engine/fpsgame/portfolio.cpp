@@ -63,6 +63,14 @@ namespace portfolio
     static vector<course *> courses;
     static int current = -1, lastarenamsg[NUMARENAS] = { 0, 0 }, lastbarrier = 0;
     static bool arenaactive[NUMARENAS] = { false, false }, inarena[NUMARENAS] = { false, false };
+    // Durée maximale pendant laquelle une vague retient les joueurs dans l'arène : au-delà,
+    // le mur d'énergie s'efface (un monstre sorti de l'arène ou coincé ne bloque plus personne).
+    enum { ARENALOCK = 60000 };
+    static int arenastart[NUMARENAS] = { 0, 0 };
+    // Vie (lifesequence) pendant laquelle le joueur est retenu dans l'arène : une mort,
+    // une réapparition ou un Respawn changent la vie et libèrent de l'arène. (update()
+    // n'est pas appelé tant que le joueur est mort : on ne peut pas s'y fier pour ça.)
+    static int arenalife[NUMARENAS] = { -1, -1 };
     static vec lastinside[NUMARENAS];
     static bool bossasked = false, bossdone = false, needlight = false;
     VARP(pfautolight, 0, 1, 1); // calcule l'éclairage (lightmaps) au chargement de la carte
@@ -225,7 +233,7 @@ namespace portfolio
         {
             fpsent *e = game::players[i];
             if(e->aitype != AI_NONE || e == game::player1) continue;
-            conoutf("joueur %d %s apparence %d", e->clientnum, e->name, e->playermodel);
+            conoutf("joueur %d %s apparence %d etat %d vie %d", e->clientnum, e->name, e->playermodel, e->state, e->health);
         }
     });
     // pfrawname : envoie N_SWITCHNAME sans passer par `name` (simule un client modifié,
@@ -249,10 +257,16 @@ namespace portfolio
         if(sscanf(msg, "arena %d %d", &a, &on) == 2 && a >= 0 && a < NUMARENAS)
         {
             arenaactive[a] = on != 0;
+            arenastart[a] = lastmillis;
             zone *z = arenazone(a);
             fpsent *d = game::player1;
-            inarena[a] = arenaactive[a] && z && d && z->inside(d->o);
-            if(inarena[a]) lastinside[a] = d->o;
+            inarena[a] = arenaactive[a] && z && d && d->state == CS_ALIVE && z->inside(d->o);
+            if(inarena[a]) { lastinside[a] = d->o; arenalife[a] = d->lifesequence; }
+        }
+        else if(sscanf(msg, "arenaopen %d", &a) == 1 && a >= 0 && a < NUMARENAS)
+        {
+            arenaactive[a] = false;
+            inarena[a] = false;
         }
         else if(sscanf(msg, "arenadone %d", &a) == 1 && a >= 0 && a < NUMARENAS)
         {
@@ -318,8 +332,36 @@ namespace portfolio
         }
     }
 
+    // Protection d'apparition : bulle bleue (sphère d'explosion bleue d'origine du moteur)
+    // autour des visiteurs protégés, vue par soi et par les autres.
+    static void spawnbubbles()
+    {
+        static int lastbubble = 0;
+        if(lastmillis - lastbubble < 40) return;
+        lastbubble = lastmillis;
+        loopv(game::players)
+        {
+            fpsent *e = game::players[i];
+            if(e->aitype != AI_NONE || e->state != CS_ALIVE || lastmillis >= e->pfprotectmillis) continue;
+            float left = (e->pfprotectmillis - lastmillis) / float(PFPROTECT);
+            vec c = vec(e->o).subz(e->eyeheight * 0.45f);
+            float r = 13.0f + 1.5f * sinf(lastmillis * 0.012f);
+            particle_fireball(c, r, PART_EXPLOSION_BLUE, 60, left > 0.25f ? 0x3C78FF : 0x2850B0, r);
+            if(e == game::player1 && !isthirdperson())
+            {
+                // vue à la 1re personne : étincelles bleues autour du champ de vision
+                loopk(3)
+                {
+                    vec p = vec(e->o).add(vec(rndscale(2) - 1, rndscale(2) - 1, rndscale(2) - 1).normalize().mul(9));
+                    particle_splash(PART_SPARK, 1, 120, p, 0x5090FF, 0.6f, 40, 0);
+                }
+            }
+        }
+    }
+
     void update()
     {
+        spawnbubbles();
         fpsent *d = game::player1;
         if(!d || d->state == CS_SPECTATOR || d->state == CS_EDITING) return;
 
@@ -336,7 +378,14 @@ namespace portfolio
             // ce qui bloquait le chargement du vrai graphe et figeait les monstres.
             ai::loadwaypoints(true);
         }
-        if(d->state != CS_ALIVE) return;
+        if(d->state != CS_ALIVE)
+        {
+            // Mort : on n'est plus retenu dans l'arène. Sans cela, la réapparition sur la
+            // place était aussitôt annulée (retour au dernier point dans l'arène, donc à
+            // l'endroit de la mort, au milieu des monstres : morts en boucle).
+            loopi(NUMARENAS) inarena[i] = false;
+            return;
+        }
 
         // Arènes fermées pendant une vague : on ne peut pas en sortir
         bool drawbarrier = lastmillis - lastbarrier > 250;
@@ -346,11 +395,17 @@ namespace portfolio
             zone *z = arenazone(i);
             if(!z) continue;
             bool in = z->inside(d->o);
-            if(arenaactive[i])
+            if(inarena[i] && arenalife[i] != d->lifesequence) inarena[i] = false;   // mort / réapparition depuis
+            if(arenaactive[i] && lastmillis - arenastart[i] > ARENALOCK)
+            {
+                if(inarena[i]) conoutf(fr("\f2Le mur d'énergie s'efface : tu peux quitter l'arène (la vague continue)."));
+                inarena[i] = false;
+            }
+            else if(arenaactive[i])
             {
                 if(drawbarrier) barrier(*z);
                 if(inarena[i] && !in) { d->o = lastinside[i]; d->vel = vec(0, 0, 0); d->falling = vec(0, 0, 0); in = true; }
-                if(in) { inarena[i] = true; lastinside[i] = d->o; }
+                if(in) { if(!inarena[i]) arenalife[i] = d->lifesequence; inarena[i] = true; lastinside[i] = d->o; }
             }
             else if(in && totalmillis - lastarenamsg[i] > 3000)
             {

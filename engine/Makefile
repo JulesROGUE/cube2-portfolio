@@ -45,7 +45,7 @@ SERVER_SRCS = \
 WEB_OBJS = $(addprefix $(BUILD)/web/,$(CLIENT_SRCS:.cpp=.o)) $(addprefix $(BUILD)/web/enet/,$(ENET_SRCS:.c=.o))
 SRV_OBJS = $(addprefix $(BUILD)/server/,$(SERVER_SRCS:.cpp=.o)) $(addprefix $(BUILD)/server/enet/,$(ENET_SRCS:.c=.o))
 
-EXPORTS = "['_main','_malloc','_free','_pf_execute','_pf_resize','_pf_grab','_pf_getyaw','_pf_getpitch','_pf_mousemove','_pf_mousepos','_pf_guiopen']"
+EXPORTS = "['_main','_malloc','_free','_pf_execute','_pf_resize','_pf_grab','_pf_getyaw','_pf_getpitch','_pf_mousemove','_pf_mousepos','_pf_guiopen','_pf_guihover']"
 RUNTIME = "['ccall','cwrap','UTF8ToString','FS','ENV','callMain']"
 
 WEB_LDFLAGS = $(WEB_OPT) $(WEB_PORTS) \
@@ -71,7 +71,7 @@ $(BUILD)/cube2_server: $(SRV_OBJS)
 
 $(BUILD)/web/%.o: %.cpp
 	@mkdir -p $(dir $@)
-	$(EMCXX) $(WEB_CXXFLAGS) -c -o $@ $<
+	$(EMCXX) $(WEB_CXXFLAGS) -MMD -MP -c -o $@ $<
 
 $(BUILD)/web/enet/%.o: enet/%.c
 	@mkdir -p $(dir $@)
@@ -79,11 +79,14 @@ $(BUILD)/web/enet/%.o: enet/%.c
 
 $(BUILD)/server/%.o: %.cpp
 	@mkdir -p $(dir $@)
-	$(CXX_NATIVE) $(SRV_CXXFLAGS) -c -o $@ $<
+	$(CXX_NATIVE) $(SRV_CXXFLAGS) -MMD -MP -c -o $@ $<
 
 $(BUILD)/server/enet/%.o: enet/%.c
 	@mkdir -p $(dir $@)
 	$(CC_NATIVE) -O2 -Ienet/include -DHAS_SOCKLEN_T=1 -DHAS_POLL=1 -DHAS_FCNTL=1 -DHAS_MSGHDR_FLAGS=1 -w -c -o $@ $<
+
+# dépendances vers les en-têtes (une structure modifiée dans game.h recompile tout ce qui l'utilise)
+-include $(WEB_OBJS:.o=.d) $(SRV_OBJS:.o=.d)
 
 clean:
 	rm -rf $(BUILD) $(WEB_OUT)/cube2.js $(WEB_OUT)/cube2.wasm

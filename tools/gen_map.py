@@ -72,6 +72,8 @@ TEX = {
     "cornice": "ik2k/ik_wood_trimh64d.jpg",
     "curb": "ik2k/ik_brick_6464a.jpg",
     "stone": "ik2k/ik_floor_brick128a.jpg",
+    "pond": "ik2k/ik_floor_brick128a.jpg",
+    "pondedge": "ik2k/ik_brick_6464a.jpg",
     "rooftile": "ik2k/ik_brick_3216d.jpg",
     # salles
     "profil_floor": "ik2k/ik_floor_wood128b.jpg", "profil_wall": "ik2k/ik_wpaperplain128a.jpg",
@@ -450,18 +452,28 @@ for (wx, wy, wz, wr) in WINDOWS:
 
 # --- Étang (eau du jeu de base) au nord, bordé de pierres -----------------------
 POND = (26, 32, 53, 59)
+# Fond en cuvette : berges en pente douce (on ressort de l'eau en marchant, sans
+# sauter ; un rebord vertical piégeait les nageurs), 32 u de profondeur au centre.
+def pond_corner(i, j):
+    w, h = POND[1] - POND[0], POND[3] - POND[2]
+    d = min(i, w - i, j, h - j)
+    return max(0, 8 - 4 * d)
 for y in range(POND[2], POND[3]):
     for x in range(POND[0], POND[1]):
         v = idx(x, y, FLOOR - 1)
-        solid[v] = 0
+        i, j = x - POND[0], y - POND[2]
+        hc = (pond_corner(i, j), pond_corner(i + 1, j), pond_corner(i, j + 1), pond_corner(i + 1, j + 1))
+        if max(hc) == 0:
+            solid[v] = 0
+        else:
+            setshape(x, y, FLOOR - 1, hf_edges(*hc), "stone")
         material[v] = MAT_WATER
         blocktex[idx(x, y, FLOOR - 2)] = "stone"
         groundtex[(x, y)] = "pond"
 for y in range(POND[2] - 1, POND[3] + 1):
     for x in range(POND[0] - 1, POND[1] + 1):
         if not (POND[0] <= x < POND[1] and POND[2] <= y < POND[3]):
-            setshape(x, y, FLOOR, box_edges(z1=2), "curb")
-            groundtex[(x, y)] = "pondedge"
+            groundtex[(x, y)] = "pondedge"         # margelle au ras du sol
 
 # --- Bordures de chemins (4 u, franchissables sans sauter) ---------------------
 for (x, y), t in list(groundtex.items()):
@@ -567,7 +579,7 @@ def leafkey(x, y, z):
     if not solid[v]:
         return ("e", material.get(v, 0))
     if v in shape:
-        return ("n",) + face_textures(x, y, z) + shape[v]
+        return ("n",) + face_textures(x, y, z) + shape[v] + (material.get(v, 0),)
     return ("s",) + face_textures(x, y, z)
 
 
@@ -604,7 +616,10 @@ def build(x, y, z, size, out):
             else:
                 out.append(struct.pack("<B6H", OCTSAV_EMPTY, *EMPTYTEX))
         elif key[0] == "n":
-            out.append(struct.pack("<B12B6H", OCTSAV_NORMAL, *(key[7:19] + key[1:7])))
+            if key[19]:     # cube partiel immergé (berges de l'étang)
+                out.append(struct.pack("<B12B6HH", OCTSAV_NORMAL | 0x40, *(key[7:19] + key[1:7] + (key[19],))))
+            else:
+                out.append(struct.pack("<B12B6H", OCTSAV_NORMAL, *(key[7:19] + key[1:7])))
         else:
             out.append(struct.pack("<B6H", OCTSAV_SOLID, *key[1:]))
 
@@ -649,7 +664,8 @@ def ambience(name, x, y, radius, inner):
 
 
 def monster_spawn(x, y, yaw=0):
-    ENTS.append((W(x), W(y), GROUND + 4, yaw, MONSTER_TAG, 0, 0, 0, ET_PLAYERSTART))
+    # posé sur le relief (sinon le départ est enfoui dans une colline)
+    ENTS.append((W(x), W(y), GROUND + 4 + terrainh(x, y), yaw, MONSTER_TAG, 0, 0, 0, ET_PLAYERSTART))
 
 
 # Départs des visiteurs : au sud de la place, tournés vers le nord (panneau d'accueil)

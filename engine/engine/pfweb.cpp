@@ -43,6 +43,13 @@ extern "C" EMSCRIPTEN_KEEPALIVE int pf_guiopen()
     return g3d_windowhit(true, false) ? 1 : 0;
 }
 
+// 1 si le curseur survole une fenêtre de menu (sinon un clic ferme les menus).
+extern bool pf_windowhover();
+extern "C" EMSCRIPTEN_KEEPALIVE int pf_guihover()
+{
+    return pf_windowhover() ? 1 : 0;
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE void pf_resize(int w, int h)
 {
     defformatstring(cmd, "screenres %d %d", w, h);

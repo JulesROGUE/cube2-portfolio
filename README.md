@@ -106,13 +106,29 @@ Les licences de chaque asset et les crédits musicaux sont détaillés dans **[C
   valeurs par défaut. La résolution
   suit la taille de l'iframe et le plein écran, ce qui évite l'étirement de l'image.
 
-Menu principal (Échap), minimal : *Reprendre la visite*, *Apparence* (choix du modèle de
-joueur, mémorisé dans le navigateur et vu des autres joueurs), *Plein écran* (aussi touche
-`F`), *Options*, *À propos*, *Quitter le jeu* (confirmation, déconnexion, puis
-`postMessage({ type: 'cube2:quit' })` à la page parente, ou retour à `/` sans parent). Le
-navigateur de serveurs, le vote de mode/carte, *master* et *disconnect* ont été retirés.
-Le pseudo est celui de la session du portfolio (`?name=`) : `/name` est refusé et le
-serveur ignore tout changement de nom après la connexion.
+Menu principal (Échap), minimal et en anglais : *Resume*, *Respawn (R)*, *Spectator* /
+*Stop spectating*, *Appearance* (choix du modèle de joueur, mémorisé dans le navigateur et
+vu des autres joueurs), *Fullscreen (F)*, *Options*, *About*, *Quit game* (confirmation,
+déconnexion, puis `postMessage({ type: 'cube2:quit' })` à la page parente, ou retour à `/`
+sans parent). Le navigateur de serveurs, le vote de mode/carte, *master* et *disconnect* ont
+été retirés. Un clic hors du menu le ferme et reprend la visite. Le pseudo est celui de la
+session du portfolio (`?name=`) : `/name` est refusé et le serveur ignore tout changement de
+nom après la connexion.
+
+- **Secours** : `R` (ou *Respawn*) fait réapparaître tout de suite sur un départ de la place
+  d'accueil, même coincé ou en spectateur (commandes d'origine `suicide` puis `respawn`).
+- **Spectateur** : commande d'origine `spectator 1/0` (le serveur l'autorise pour soi sans
+  être master) ; vol libre à travers la carte, invisible pour les autres.
+- **Réapparition** : toujours sur un départ (`playerstart`) de la place. Mourir dans une
+  arène fermée libère de l'arène (avant, la réapparition était aussitôt annulée et l'on
+  revenait à l'endroit de sa mort, au milieu des monstres). Une vague qui ne finit pas en
+  3 minutes rouvre l'arène.
+- **Protection d'apparition** (ajoutée, absente de Sauerbraten) : 3 s d'invulnérabilité,
+  appliquée par le serveur (PvP, monstres, dégâts sur soi), signalée par une bulle bleue
+  (sphère d'explosion bleue d'origine du moteur) visible de tous, et des étincelles bleues
+  à la 1re personne.
+- **Connexion perdue** (serveur redémarré, réseau) : rechargement de la carte et
+  reconnexion automatique, avec un délai croissant.
 
 Clavier AZERTY : `Z` `Q` `S` `D` pour se déplacer (les flèches restent actives), souris, `Espace`/clic droit (saut), clic (tir), `1`–`6`
 et la molette (armes), `T` (chat), `Tab` (scores), `Échap` (menu). Le jeu reçoit le

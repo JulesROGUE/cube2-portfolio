@@ -121,6 +121,7 @@ namespace server
         vec o;
         int state, editstate;
         int lastdeath, deadflush, lastspawn, lifesequence;
+        int pfprotect;   // PORTFOLIO : invulnérable jusqu'à ce gamemillis (apparition)
         int lastshot;
         projectilestate<8> rockets, grenades;
         int frags, flags, deaths, teamkills, shotdamage, damage, tokens;
@@ -161,6 +162,7 @@ namespace server
             o = vec(-1e10f, -1e10f, -1e10f);
             deadflush = 0;
             lastspawn = -1;
+            pfprotect = 0;
             lastshot = 0;
             tokens = 0;
         }
@@ -2297,6 +2299,8 @@ namespace server
             if(actor->pfboss) damage *= 2; // attaques renforcées du boss
         }
         gamestate &ts = target->state;
+        // PORTFOLIO : protection d'apparition, valable contre tout (PvP, monstres, soi-même)
+        if(target->state.aitype == AI_NONE && gamemillis < ts.pfprotect) return;
         ts.dodamage(damage);
         if(target!=actor && !isteam(target->team, actor->team)) actor->state.damage += damage;
         sendf(-1, 1, "ri6", N_DAMAGE, target->clientnum, actor->clientnum, damage, ts.armour, ts.health);
@@ -3234,6 +3238,8 @@ namespace server
                 if(!cq || (cq->state.state!=CS_ALIVE && cq->state.state!=CS_DEAD && cq->state.state!=CS_EDITING) || ls!=cq->state.lifesequence || cq->state.lastspawn<0) break;
                 cq->state.lastspawn = -1;
                 cq->state.state = CS_ALIVE;
+                // PORTFOLIO : quelques secondes d'invulnérabilité à l'apparition (visiteurs)
+                if(cq->state.aitype == AI_NONE) cq->state.pfprotect = gamemillis + PFPROTECT;
                 cq->state.gunselect = gunselect >= GUN_FIST && gunselect <= GUN_PISTOL ? gunselect : GUN_FIST;
                 cq->exceeded = 0;
                 if(smode) smode->spawned(cq);
@@ -3851,7 +3857,7 @@ namespace server
     // =====================================================================
     namespace pfgame
     {
-        enum { NUMARENAS = 2, COOLDOWN = 45000 };
+        enum { NUMARENAS = 2, COOLDOWN = 45000, WAVETIMEOUT = 180000 };
         static const char * const arenanames[NUMARENAS] = { "la banquise de Tux World", "le Colisée" };
         static int arenastate[NUMARENAS] = { 0, 0 }, arenamillis[NUMARENAS] = { 0, 0 };   // 0 libre, 1 vague en cours, 2 repos
         static int bossstate = 0;   // 0 pas encore, 1 en cours, 2 vaincu
@@ -3967,6 +3973,15 @@ namespace server
                     clearbots(i + 1);
                     message("\f0%s est nettoyé(e) : l'arène se rouvre !", arenanames[i]);
                     sendf(-1, 1, "ris", N_SERVMSG, i ? "#pf arenadone 1" : "#pf arenadone 0");
+                }
+                else if(arenastate[i] == 1 && gamemillis - arenamillis[i] > WAVETIMEOUT)
+                {
+                    // filet de sécurité : une vague qui ne peut pas finir (monstre coincé…)
+                    // ne retient pas les visiteurs indéfiniment
+                    arenastate[i] = 0;
+                    clearbots(i + 1);
+                    message("\f2%s se rouvre (temps écoulé). Retentez la vague quand vous voulez.", arenanames[i]);
+                    sendf(-1, 1, "ris", N_SERVMSG, i ? "#pf arenaopen 1" : "#pf arenaopen 0");
                 }
                 else if(arenastate[i] == 2 && gamemillis - arenamillis[i] > COOLDOWN) arenastate[i] = 0;
             }

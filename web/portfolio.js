@@ -29,6 +29,7 @@
   var wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + basePath + 'ws';
 
   var ready = false;
+  var reconnectDelay = 3000, reconnectTimer = 0;
   function call(fn, types, args) {
     if (!ready) return;
     try { Module.ccall(fn, null, types, args); } catch (e) { console.error(e); }
@@ -159,7 +160,21 @@
       if (!offline) setTimeout(function () { exec('pfconnect'); }, 800);
     },
     onGameReady: function () { loading.className = 'done'; resize(); },
-    onConnect: noop, onDisconnect: noop, onLocalDisconnect: noop, postLoadWorld: noop,
+    onConnect: function () { reconnectDelay = 3000; },
+    // Connexion perdue (serveur redémarré, réseau coupé…) : le moteur se retrouve sans
+    // carte ni mode. On recharge la carte en solo puis on se reconnecte (délai croissant).
+    onDisconnect: function () {
+      if (quitting || offline) return;
+      console.warn('connexion au serveur perdue : nouvelle tentative dans ' + (reconnectDelay / 1000) + ' s');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(function () {
+        if (quitting) return;
+        exec('if (! (isconnected)) [mode 0; map portfolio]');
+        setTimeout(function () { exec('if (! (isconnected)) [pfconnect]'); }, 800);
+      }, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+    },
+    onLocalDisconnect: noop, postLoadWorld: noop,
     // `js "..."` côté cubescript : seul l'enchaînement des musiques est autorisé.
     interop: function (cmd) {
       if (cmd === 'nextmusic') nextMusic();
@@ -282,7 +297,10 @@
     resumeAudio();
     if (!ready || locked()) return;
     sendPos(e);
-    if (guiOpen()) return;               // clic destiné au menu, traité par le jeu
+    if (guiOpen()) {
+      if (Module._pf_guihover && Module._pf_guihover()) return;   // clic sur le menu, traité par le jeu
+      exec('cleargui');                  // clic hors du menu : on le ferme et on reprend la visite
+    }
     requestLock();                       // clic dans le jeu hors menu : reprise de la capture
   });
   document.addEventListener('keydown', resumeAudio);
@@ -317,7 +335,8 @@
     if (!el.requestFullscreen) return;
     if (wasLocked) expectUnlockUntil = performance.now() + 1500;   // le changement de mode peut libérer la souris
     var p = el.requestFullscreen();
-    if (p && p.then) p.then(function () { if (wasLocked && !locked()) requestLock(); })
+    // la capture a survécu au changement de mode : un Échap ultérieur doit rouvrir le menu
+    if (p && p.then) p.then(function () { if (locked()) expectUnlockUntil = 0; else if (wasLocked) requestLock(); })
       .catch(function (e) { console.warn('plein écran refusé : ' + e); });
   }
 

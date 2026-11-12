@@ -1081,7 +1081,10 @@ void checkinput()
 #ifdef __EMSCRIPTEN__
                 // Souris libre : les clics ne vont qu'aux menus (curseur natif, position
                 // absolue fournie par pf_mousepos) ; hors menu, la coquille web reprend la capture.
-                if(!grabinput && !g3d_windowhit(true, false)) break;
+                {
+                    extern bool pf_windowhover();
+                    if(!grabinput && !(g3d_windowhit(true, false) && pf_windowhover())) break;
+                }
 #endif
 #ifdef __EMSCRIPTEN__
                 // Clic très bref (appui et relâchement dans la même image) : le relâchement est

@@ -1756,6 +1756,7 @@ namespace game
                     parsestate(d, p);
                     if(!d) break;
                     d->state = CS_SPAWNING;
+                    if(d->aitype == AI_NONE) d->pfprotectmillis = lastmillis + PFPROTECT;
                     if(player1->state==CS_SPECTATOR && following==d->clientnum)
                         lasthit = 0;
                     break;
@@ -1776,6 +1777,7 @@ namespace game
                 parsestate(s, p);
                 s->state = CS_ALIVE;
                 pickgamespawn(s);
+                if(s->aitype == AI_NONE) s->pfprotectmillis = lastmillis + PFPROTECT;
                 if(s == player1)
                 {
                     showscores(false);

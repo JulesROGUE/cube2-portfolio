@@ -1276,6 +1276,8 @@ bool g3d_movecursor(int dx, int dy)
 }
 
 #if __EMSCRIPTEN__
+bool pf_windowhover() { return windowhit != NULL; }
+
 // PORTFOLIO : position absolue du curseur natif (fractions de la taille du canvas)
 void pf_setcursor(float x, float y)
 {

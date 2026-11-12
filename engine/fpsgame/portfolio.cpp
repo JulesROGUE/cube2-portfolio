@@ -346,8 +346,10 @@ namespace portfolio
             float left = (e->pfprotectmillis - lastmillis) / float(PFPROTECT);
             vec c = vec(e->o).subz(e->eyeheight * 0.45f);
             float r = 13.0f + 1.5f * sinf(lastmillis * 0.012f);
-            particle_fireball(c, r, PART_EXPLOSION_BLUE, 60, left > 0.25f ? 0x3C78FF : 0x2850B0, r);
-            if(e == game::player1 && !isthirdperson())
+            bool firstperson = e == game::player1 && !isthirdperson();
+            // vue de l'intérieur, la sphère voilerait tout l'écran : seulement pour les autres
+            if(!firstperson) particle_fireball(c, r, PART_EXPLOSION_BLUE, 60, left > 0.25f ? 0x3C78FF : 0x2850B0, r);
+            else
             {
                 // vue à la 1re personne : étincelles bleues autour du champ de vision
                 loopk(3)

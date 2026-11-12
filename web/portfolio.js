@@ -30,6 +30,24 @@
 
   var ready = false;
   var reconnectDelay = 3000, reconnectTimer = 0;
+  // Connexion perdue (serveur redémarré, réseau coupé…) : le moteur se retrouve sans
+  // carte ni mode. On recharge la carte en solo puis on retente la connexion, avec un
+  // délai croissant, jusqu'à ce qu'elle réussisse (un échec de connexion relance un essai).
+  function scheduleReconnect(reloadMap) {
+    if (quitting || offline) return;
+    console.warn('connexion au serveur perdue : nouvelle tentative dans ' + (reconnectDelay / 1000) + ' s');
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(function () {
+      if (quitting) return;
+      if (reloadMap) exec('if (! (isconnected 0 0)) [mode 0; map portfolio]');
+      setTimeout(function () {
+        exec('if (! (isconnected 0 0)) [pfconnect]');
+        // pas connecté 15 s plus tard (échec de connexion) : nouvel essai
+        reconnectTimer = setTimeout(function () { exec('if (! (isconnected 0 0)) [js reconnect]'); }, 15000);
+      }, reloadMap ? 800 : 0);
+    }, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+  }
   function call(fn, types, args) {
     if (!ready) return;
     try { Module.ccall(fn, null, types, args); } catch (e) { console.error(e); }
@@ -165,14 +183,7 @@
     // carte ni mode. On recharge la carte en solo puis on se reconnecte (délai croissant).
     onDisconnect: function () {
       if (quitting || offline) return;
-      console.warn('connexion au serveur perdue : nouvelle tentative dans ' + (reconnectDelay / 1000) + ' s');
-      clearTimeout(reconnectTimer);
-      reconnectTimer = setTimeout(function () {
-        if (quitting) return;
-        exec('if (! (isconnected)) [mode 0; map portfolio]');
-        setTimeout(function () { exec('if (! (isconnected)) [pfconnect]'); }, 800);
-      }, reconnectDelay);
-      reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+      scheduleReconnect(true);
     },
     onLocalDisconnect: noop, postLoadWorld: noop,
     // `js "..."` côté cubescript : seul l'enchaînement des musiques est autorisé.
@@ -180,6 +191,7 @@
       if (cmd === 'nextmusic') nextMusic();
       else if (cmd === 'fullscreen') setTimeout(toggleFullscreen, 0);
       else if (cmd === 'quit') setTimeout(quitGame, 0);
+      else if (cmd === 'reconnect') scheduleReconnect(false);
       return 0;
     },
     // Fichiers introuvables : seuls les échecs signalés par le moteur (msg != 0) comptent,
@@ -298,8 +310,14 @@
     if (!ready || locked()) return;
     sendPos(e);
     if (guiOpen()) {
-      if (Module._pf_guihover && Module._pf_guihover()) return;   // clic sur le menu, traité par le jeu
-      exec('cleargui');                  // clic hors du menu : on le ferme et on reprend la visite
+      // Le survol du menu est calculé au rendu : on attend deux images pour qu'il tienne
+      // compte de la position du clic (le geste reste valable pour reprendre la capture).
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        if (!guiOpen() || (Module._pf_guihover && Module._pf_guihover())) return;   // clic sur le menu
+        exec('cleargui');                // clic hors du menu : on le ferme et on reprend la visite
+        requestLock();
+      }); });
+      return;
     }
     requestLock();                       // clic dans le jeu hors menu : reprise de la capture
   });

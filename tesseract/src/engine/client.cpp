@@ -1,6 +1,9 @@
 // client.cpp, mostly network related client game code
 
 #include "engine.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 ENetHost *clienthost = NULL;
 ENetPeer *curpeer = NULL, *connpeer = NULL;
@@ -92,11 +95,16 @@ void connectserv(const char *servername, int serverport, const char *serverpassw
         if(serverport != connectport) setvar("connectport", serverport);
         addserver(servername, serverport, serverpassword && serverpassword[0] ? serverpassword : NULL);
         conoutf("attempting to connect to %s:%d", servername, serverport);
+#ifdef __EMSCRIPTEN__
+        // PORTFOLIO : sockets émulées par WebSocket (Module.websocket.url) : pas de DNS
+        enet_address_set_host(&address, servername);
+#else
         if(!resolverwait(servername, &address))
         {
             conoutf(CON_ERROR, "\f3could not resolve server %s", servername);
             return;
         }
+#endif
     }
     else
     {
@@ -118,6 +126,10 @@ void connectserv(const char *servername, int serverport, const char *serverpassw
     }
 
     connpeer = enet_host_connect(clienthost, &address, server::numchannels(), 0);
+#ifdef __EMSCRIPTEN__
+    // PORTFOLIO : le navigateur peut être bloqué quelques secondes (chargement, shaders)
+    if(connpeer) enet_peer_timeout(connpeer, 0, 15000, 30000);
+#endif
     enet_host_flush(clienthost);
     connmillis = totalmillis;
     connattempts = 0;
@@ -154,6 +166,9 @@ void disconnect(bool async, bool cleanup)
         curpeer = NULL;
         discmillis = 0;
         conoutf("disconnected");
+#ifdef __EMSCRIPTEN__
+        EM_ASM({ if (Module.onDisconnect) Module.onDisconnect(); });   // reconnexion (coquille web)
+#endif
         game::gamedisconnect(cleanup);
         mainmenu = 1;
     }
@@ -237,6 +252,9 @@ void gets2c()           // get updates from the server
             curpeer = connpeer;
             connpeer = NULL;
             conoutf("connected to server");
+#ifdef __EMSCRIPTEN__
+            EM_ASM({ if (Module.onConnect) Module.onConnect(); });
+#endif
             throttle();
             if(rate) setrate(rate);
             game::gameconnect(true);

@@ -23,7 +23,11 @@ phases de parkour, des combats d'arène et un boss final.
   fenêtres, colonnes de part et d'autre des portes, soubassement en pierre, bordures de
   chemins, collines douces (pentes générées en champ de hauteur), un étang (matériau eau du
   jeu de base) et des lanternes colorées à l'entrée de chaque bâtiment, avec les décors
-  d'origine (arbres, buissons, puits, bancs, réverbères, lampes au sol) :
+  d'origine (arbres, buissons, puits, bancs, réverbères, lampes au sol, roseaux), de l'herbe
+  animée du moteur (`autograss`) sur les pelouses et les collines, un étang et un ruisseau
+  peu profond (eau du jeu de base, fonds en pente douce : on en ressort partout) ; chaque
+  pièce est habillée de petits décors du jeu de base (casiers, caisses, tonneaux, plantes,
+  bougies, cartons…) :
 
   | Lieu | Thème | Éléments |
   |---|---|---|
@@ -127,6 +131,15 @@ nom après la connexion.
   appliquée par le serveur (PvP, monstres, dégâts sur soi), signalée par une bulle bleue
   (sphère d'explosion bleue d'origine du moteur) visible de tous, et des étincelles bleues
   à la 1re personne.
+- **Histoire** : racontée en jouant, en 5 chapitres dans la console d'origine (le
+  portfolio en panne, les salles, les hauteurs, les gardiens des arènes, KernelPanic) puis
+  un épilogue ; après chaque fragment, l'objectif suivant est rappelé avec le compte.
+  Des inscriptions flottantes (texte en particules du moteur) marquent la place (fragments
+  retrouvés), les arènes, les départs des parcours et la galerie. Textes : `tools/content.py`.
+- **Armes à ramasser** (objets du jeu de base, réapparition normale gérée par le serveur) :
+  fusil à pompe et chaingun près de la place, lance-grenades, pistolet et fusil à pompe sur
+  les chemins, armure dans un recoin, et deux lance-roquettes en récompense à l'arrivée des
+  parcours (un message d'histoire accompagne la première prise d'une arme importante).
 - **Connexion perdue** (serveur redémarré, réseau) : rechargement de la carte et
   reconnexion automatique, avec un délai croissant.
 

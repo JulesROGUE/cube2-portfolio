@@ -874,6 +874,7 @@ namespace portfolio
     extern void update();
     extern void reset();
     extern void servermsg(const char *msg);
+    extern void pickedup(int type);
 }
 
 #endif

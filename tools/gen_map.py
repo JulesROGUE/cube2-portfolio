@@ -22,7 +22,7 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from content import ZONES, STORY, FRAGMENTS, cubescript_string  # noqa: E402
+from content import ZONES, STORY, FRAGMENTS, FRAGMENT_KIND, SIGNS, cubescript_string  # noqa: E402
 
 VOX = 32            # taille d'un voxel en unités du monde
 N = 64              # voxels par axe -> monde de 2048
@@ -452,27 +452,40 @@ for (wx, wy, wz, wr) in WINDOWS:
 
 # --- Étang (eau du jeu de base) au nord, bordé de pierres -----------------------
 POND = (26, 32, 53, 59)
-# Fond en cuvette : berges en pente douce (on ressort de l'eau en marchant, sans
-# sauter ; un rebord vertical piégeait les nageurs), 32 u de profondeur au centre.
+# Eau du jeu de base : étang en cuvette et ruisseau peu profond vers l'est. Fonds en
+# pente douce (16 u au plus par voxel) : on ressort partout en marchant, sans sauter.
+STREAM = (32, 41, 55, 57)            # x0, x1, y0, y1 (2 voxels de large, 16 u de fond au milieu)
+WATERC = {}                          # coins (X, Y) -> hauteur du fond (huitièmes de voxel)
+
+
 def pond_corner(i, j):
     w, h = POND[1] - POND[0], POND[3] - POND[2]
     d = min(i, w - i, j, h - j)
     return max(0, 8 - 4 * d)
-for y in range(POND[2], POND[3]):
-    for x in range(POND[0], POND[1]):
-        v = idx(x, y, FLOOR - 1)
-        i, j = x - POND[0], y - POND[2]
-        hc = (pond_corner(i, j), pond_corner(i + 1, j), pond_corner(i, j + 1), pond_corner(i + 1, j + 1))
-        if max(hc) == 0:
-            solid[v] = 0
-        else:
-            setshape(x, y, FLOOR - 1, hf_edges(*hc), "stone")
-        material[v] = MAT_WATER
-        blocktex[idx(x, y, FLOOR - 2)] = "stone"
-        groundtex[(x, y)] = "pond"
+
+
+for Y in range(POND[2], POND[3] + 1):
+    for X in range(POND[0], POND[1] + 1):
+        WATERC[(X, Y)] = pond_corner(X - POND[0], Y - POND[2])
+for Y in range(STREAM[2], STREAM[3] + 1):
+    for X in range(STREAM[0], STREAM[1] + 1):
+        mid = Y == (STREAM[2] + STREAM[3]) // 2 and X < STREAM[1]
+        WATERC[(X, Y)] = min(WATERC.get((X, Y), 8), 4 if mid else 8)
+WATERCELLS = [(x, y) for y in range(POND[2], POND[3]) for x in range(POND[0], POND[1])] + \
+             [(x, y) for y in range(STREAM[2], STREAM[3]) for x in range(STREAM[0], STREAM[1])]
+for (x, y) in WATERCELLS:
+    v = idx(x, y, FLOOR - 1)
+    hc = (WATERC[(x, y)], WATERC[(x + 1, y)], WATERC[(x, y + 1)], WATERC[(x + 1, y + 1)])
+    if max(hc) == 0:
+        solid[v] = 0
+    else:
+        setshape(x, y, FLOOR - 1, hf_edges(*hc), "stone")
+    material[v] = MAT_WATER
+    blocktex[idx(x, y, FLOOR - 2)] = "stone"
+    groundtex[(x, y)] = "pond"
 for y in range(POND[2] - 1, POND[3] + 1):
     for x in range(POND[0] - 1, POND[1] + 1):
-        if not (POND[0] <= x < POND[1] and POND[2] <= y < POND[3]):
+        if not (POND[0] <= x < POND[1] and POND[2] <= y < POND[3]) and (x, y) not in groundtex:
             groundtex[(x, y)] = "pondedge"         # margelle au ras du sol
 
 # --- Bordures de chemins (4 u, franchissables sans sauter) ---------------------
@@ -494,7 +507,8 @@ for y in range(N):
     for x in range(N):
         if (x, y) in groundtex or x < 2 or y < 2 or x >= N - 2 or y >= N - 2:
             flat[y][x] = True
-        elif any(solid[idx(x, y, z)] for z in range(FLOOR, FLOOR + 3)) or not solid[idx(x, y, FLOOR - 1)]:
+        elif any(solid[idx(x, y, z)] for z in range(FLOOR, FLOOR + 3)) or not solid[idx(x, y, FLOOR - 1)] \
+                or roomof[idx(x, y, FLOOR)] is not None:      # intérieur des bâtiments : sol plat
             flat[y][x] = True
 # marge de 2 voxels autour des lieux aménagés (sauf la bordure de falaises)
 keep = [[flat[y][x] and 2 <= x < N - 2 and 2 <= y < N - 2 for x in range(N)] for y in range(N)]
@@ -682,6 +696,7 @@ prop("objects/bench01", 28, 35.5, 0, 0, 0)
 prop("objects/bench01", 36, 35.5, 0, 0, 0)
 prop("objects/well_base", 32.5, 31.5, 0, 0, 1)        # puits au centre de la place
 prop("objects/well_roof", 32.5, 31.5, 0, 0)
+
 TREES = ((22, 6, "dcp/tree2"), (44, 4, "dcp/tree3"), (40, 37, "dcp/tree2"), (22, 56, "dcp/tree2"),
          (14, 57, "dcp/tree3"), (58, 30, "dcp/palmtree"), (40, 58, "dcp/palmtree"), (60, 4, "dcp/tree2"),
          (22, 28, "dcp/tree3"), (58, 20, "dcp/tree3"), (35, 57, "dcp/tree2"), (6, 57, "dcp/tree2"),
@@ -690,8 +705,10 @@ for (x, y, m) in TREES:
     prop(m, x + 0.5, y + 0.5, 0, 0, 1)
 for (x, y) in ((24.5, 40.5), (39.5, 40.5), (13.5, 22.5), (24.5, 22.5), (45.5, 27.5), (45.5, 36.5), (33.5, 52.5)):
     prop("dcp/plant1", x, y, 0, 0, 0)                 # buissons au pied des bâtiments
-for (x, y) in ((28.5, 52.5), (31.5, 52.5), (25.5, 56.5), (32.5, 56.5)):
+for (x, y) in ((28.5, 52.5), (31.5, 52.5), (25.5, 56.5)):
     prop("dcp/leafs", x, y)                           # végétation autour de l'étang
+for (x, y) in ((26.4, 53.4), (31.6, 58.6), (26.3, 58.5), (34.5, 54.6), (37.5, 57.4), (40.6, 54.5)):
+    prop("dcp/reed", x, y)                            # roseaux au bord de l'eau
 item(I_SHELLS, 28, 29)
 item(I_BULLETS, 37, 29)
 item(I_HEALTH, 32.5, 27)
@@ -717,6 +734,9 @@ prop("objects/chair01", 17.5, 46.5, 270)
 prop("objects/lamp01", 15.6, 49.3)
 prop("dcp/plant1", 22.3, 42.7)
 prop("dcp/vase", 22.3, 49.3)
+prop("dcp/smplant", 15.6, 42.7)
+prop("dcp/bin", 22.4, 45.6)
+prop("xeno/box1", 15.8, 44.6, 20)
 light(19, 46, (255, 214, 150), 240)
 item(I_CARTRIDGES, 20, 44)
 item(I_HEALTH, 21, 48)
@@ -728,6 +748,10 @@ for y in (43.5, 46, 48.5):
     prop("dcp/console", 37.4, y, 180)
 prop("dcp/biotank", 28, 43)
 prop("dcp/biotank", 28, 49)
+prop("mitaman/locker1", 27.6, 45.5, 90)
+prop("mitaman/locker3", 27.6, 46.6, 90)
+prop("psionic/barrel2", 29.2, 42.6)
+prop("dcp/vent", 33, 49.6, 180)
 light(31, 46, (120, 180, 255), 220)
 light(36, 46, (80, 255, 170), 200)
 item(I_ROUNDS, 33, 44)
@@ -740,6 +764,10 @@ prop("dcp/vase", 15.6, 13)
 prop("dcp/vase", 15.6, 19)
 prop("dcp/chest", 22.3, 13, 180)
 prop("objects/lantern01", 15.1, 16, 0, 40)
+prop("dcp/candle", 22.4, 15)
+prop("dcp/candle", 22.4, 17)
+prop("dcp/smplant", 15.6, 17.6)
+prop("dcp/cbbox", 21.6, 19.3)
 light(19, 16, (255, 220, 140), 240)
 item(I_YELLOWARMOUR, 20, 13)
 item(I_GRENADES, 21, 18)
@@ -759,6 +787,10 @@ prop("objects/sign01", 47, 35.3, 0)
 for (x, y) in ((53.2, 29), (53.4, 30), (52.6, 29.5)):
     prop("dcp/sack", x, y)
 prop("dcp/chest", 53, 35, 180)
+prop("xeno/box1", 46.8, 28.8)
+prop("xeno/box2", 47.7, 28.7, 30)
+prop("dcp/cbbox", 53.4, 33.2)
+prop("dcp/bin", 46.7, 33.4)
 light(50, 32, (255, 240, 200), 240)
 item(I_HEALTH, 48, 34.5)
 item(I_BOOST, 48, 29.5)
@@ -776,6 +808,8 @@ prop("dcp/barrel", 3.6, 20.6)
 prop("dcp/barrel", 3.6, 25.3)
 prop("dcp/cask", 8.3, 20.7)
 prop("dcp/cart", 8.2, 25.2, 0)
+prop("psionic/barrel2", 4.3, 22.1)
+prop("dcp/palette", 7.6, 21.5)
 light(6, 23, (255, 190, 120), 170)
 item(I_BULLETS, 7.5, 23)
 ambience("ambience/distant_cars", 6, 23, 120, 50)
@@ -792,6 +826,7 @@ prop("dcp/mushroom", 4.5, 36.5)
 prop("dcp/mushroom", 7.5, 33.5)
 prop("dcp/grass", 6, 36)
 prop("dcp/grass", 5, 34)
+prop("dcp/reed", 7.4, 37.4)
 item(I_SHELLS, 6, 35.5)
 ambience("ambience/forest1", 6, 35.5, 120, 50)
 # Cube 2 : arène
@@ -800,6 +835,7 @@ prop("dcp/pillar", 4, 43)
 prop("dcp/turret", 8.2, 41.5, 180)
 prop("aftas/caixa", 6.5, 39.8)
 prop("aftas/caixa", 6.5, 43.2)
+prop("psionic/crate4", 8.3, 43.8)
 light(6, 41.5, (255, 110, 80), 170)
 item(I_ROCKETS, 5.5, 41.5)
 item(I_ROUNDS, 8, 40)
@@ -810,6 +846,8 @@ prop("dcp/console", 3.6, 46.5, 0)
 prop("dcp/console", 3.6, 49.5, 0)
 prop("objects/table01", 6.8, 48, 0)
 prop("objects/chair01", 7.8, 48, 180)
+prop("dcp/bin", 8.4, 49.5)
+prop("dcp/smplant", 3.8, 48)
 light(6, 48, (255, 160, 110), 170)
 item(I_GREENARMOUR, 8, 46)
 ambience("soundsnap/fan", 6, 48, 120, 50)
@@ -847,11 +885,21 @@ for (x, y) in ((27, 5), (39, 5), (27, 12), (39, 12), (33, 6), (33, 10)):
 for (x, y) in ((33, 7), (28, 6), (38, 6), (33, 12)):
     ENTS.append((W(x), W(y), GROUND + 4, 0, 12, 0, 0, 0, ET_PLAYERSTART))
 # armes et munitions à proximité des arènes
-for (k, x, y) in ((I_SHELLS, 33, 22.5), (I_BULLETS, 30, 22.5), (I_ROCKETS, 36, 22.5), (I_HEALTH, 33, 17),
+for (k, x, y) in ((I_SHELLS, 33, 22.5), (I_BULLETS, 30, 22.5), (I_HEALTH, 33, 17),
                   (I_ROUNDS, 27.5, 18.5), (I_GRENADES, 38.5, 18.5), (I_YELLOWARMOUR, 33, 14), (I_HEALTH, 27.5, 9),
                   (I_HEALTH, 38.5, 9), (I_BULLETS, 41.5, 23), (I_SHELLS, 44, 23)):
     item(k, x, y)
 light(33, 12, (255, 200, 160), 300, 140)
+# Armes à ramasser (objets du jeu de base, réapparition normale gérée par le serveur) :
+# communes sur les chemins, les plus fortes en récompense des parcours (avant les arènes).
+for (k, x, y) in ((I_GRENADES, 16, 30.5),          # chemin ouest, vers la galerie
+                  (I_CARTRIDGES, 18.5, 38.5),      # chemin nord-ouest, vers le Profil
+                  (I_SHELLS, 42.5, 31),            # chemin est, vers le Contact
+                  (I_HEALTH, 41.5, 41.5),          # pied du parcours des piliers
+                  (I_GREENARMOUR, 34.5, 59.5)):    # recoin derrière l'étang
+    item(k, x, y)
+item(I_ROCKETS, 51.5, 51, 4 + PK1END[4])           # arrivée du parcours des piliers
+item(I_ROCKETS, 13.6, 10.5, 4 + PK2END[4])         # arrivée du parcours des poutres (près du Colisée)
 ambience("akari/stadiumsound", 33, 12, 300, 120)
 
 # ---------------------------------------------------------------------------
@@ -945,6 +993,8 @@ def write_cfg(path):
          "texturereset", "setshader stdworld"]
     for name, line in TEXTURES:
         L.append(line + "   // " + name)
+        if name == "grass":
+            L.append('autograss "textures/grass.png"   // herbe animée du moteur sur les pelouses')
     L += ["", "// --- Décors (mapmodels du jeu de base) --------------------------------", "mapmodelreset"]
     for i, name in enumerate(MAPMODELS):
         L.append('mmodel "%s"   // %d' % (name, i))
@@ -953,8 +1003,14 @@ def write_cfg(path):
         L.append('mapsound "%s" 200   // %d' % (name, i))
     L += ["", "// --- Progression : fragments, zones, parcours, arènes --------------------", "pfreset",
           "pfend " + cubescript_string(STORY["end"])]
+    L.append("// histoire (chapitres, objectifs, armes) : voir tools/content.py")
+    for key, text in STORY.items():
+        L.append("pfstory_%s = %s" % (key, cubescript_string(text)))
     for fid, title in FRAGMENTS:
-        L.append("pffragment %s %s" % (fid, cubescript_string(title)))
+        L.append("pffragment %s %s %s" % (fid, cubescript_string(title), FRAGMENT_KIND.get(fid, "")))
+    L.append("// inscriptions flottantes (particules de texte du moteur)")
+    for (x, y, h, color, text) in SIGNS:
+        L.append("pfsign %g %g %g %d %s" % (W(x), W(y), GROUND + terrainh(x, y) + h, color, cubescript_string(text)))
 
     def zone(zid, box, title, text, spec):
         x0, x1, y0, y1, z0, z1 = box

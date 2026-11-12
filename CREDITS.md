@@ -35,10 +35,13 @@ convertis en JPEG, reflets d'environnement (envmap) retirés des `.cfg` des mod�
 | Apparences Inky (`models/inky`) et Captain Cannon (`models/captaincannon`) | John « geartrooper » Siar | CC BY-NC 3.0 (`license.txt`) |
 | Objets : munitions, santé, armure, boost, quad, projectiles, débris, téléporteur | Équipe Sauerbraten / makkE | CC BY-NC-SA (`models/ammo/license.txt`…) |
 | Monstres : rat (Ratamahatta), slith, bauul, hellpig | Auteurs Quake II indiqués dans chaque readme (rat/bauul : non commercial, crédit ; hellpig : libre avec crédit ; slith : libre redistribution) | readme de chaque dossier |
-| Décors `models/dcp` (plantes, bancs, consoles, tonneaux, piliers, arbres, réverbères…) | Dietmar « dcp » Pier | libre pour les cartes Cube (`Readme.txt`) |
+| Décors `models/dcp` (plantes, bancs, consoles, tonneaux, piliers, arbres, réverbères, roseaux, poubelles, cartons, palettes, bougies…) | Dietmar « dcp » Pier | libre pour les cartes Cube (`Readme.txt`) |
+| Décors `models/mitaman/locker1`, `locker3` (casiers) | Mike « MitaMAN » Poeschl | libre, crédit demandé (`locker1.txt`, `locker3.txt`) |
+| Décors `models/psionic/barrel2`, `crate4` (tonneau, caisse) | Psionic | libre, y compris commercial, crédit apprécié (`Psionic permission.txt`) |
+| Décors `models/xeno/box1`, `box2` (caisses en bois) | Matthias « Xeno » Breuer | « Feel free to do whatever you want with those » (`Xeno permission.txt`) |
 | Décors `models/objects` (table, chaise, lampe, panneau, wagonnet, lanterne, puits, banc) | makkE, Kurtis Kesler | CC BY-NC-SA 2.5 |
 | Eau : `golgotha/water2` | Jeu Golgotha (art versé au domaine public, readme fourni) | libre usage non commercial |
-| Eau : `textures/water*`, `waterfall*`, reflets `caustics` | Équipe Sauerbraten | licence du jeu |
+| Eau : `textures/water*`, `waterfall*`, reflets `caustics` ; herbe animée `textures/grass.png` | Équipe Sauerbraten | licence du jeu |
 | Décor `models/aftas/caixa` | Jésus « aftasardem » Maia | libre pour les cartes Sauerbraten/Cube |
 | Textures `ik2k`, `ikbase` | Iikka Keränen | distribution libre non commerciale, crédit |
 | Textures `tech1soc` | Sock | crédit demandé (readme fourni) |

@@ -208,6 +208,7 @@ namespace entities
         }
         playsound(itemstats[type-I_SHELLS].sound, d!=h ? &d->o : NULL, NULL, 0, 0, 0, -1, 0, 1500);
         d->pickup(type);
+        if(d==player1) portfolio::pickedup(type);   // PORTFOLIO : armes importantes -> histoire
         if(d==h) switch(type)
         {
             case I_BOOST:

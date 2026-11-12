@@ -33,6 +33,8 @@ packages/textures/waterfalln.jpg
 packages/textures/waterfalldudv.jpg
 packages/golgotha/water2.jpg
 packages/caustics/
+# herbe animée du moteur (autograss)
+packages/textures/grass.png
 packages/golgotha/golgotha readme.txt
 packages/skyboxes/remus/
 
@@ -90,6 +92,20 @@ packages/models/dcp/tree3/
 packages/models/dcp/palmtree/
 packages/models/dcp/streetlamp/
 packages/models/dcp/Readme.txt
+packages/models/dcp/bin/
+packages/models/dcp/smplant/
+packages/models/dcp/reed/
+packages/models/dcp/cbbox/
+packages/models/dcp/palette/
+# petits décors des pièces (licences : textes fournis avec chaque pack)
+packages/models/mitaman/locker1/
+packages/models/mitaman/locker3/
+packages/models/psionic/barrel2/
+packages/models/psionic/crate4/
+packages/models/psionic/Psionic permission.txt
+packages/models/xeno/box1/
+packages/models/xeno/box2/
+packages/models/xeno/Xeno permission.txt
 packages/models/objects/table01/
 packages/models/objects/chair01/
 packages/models/objects/lamp01/

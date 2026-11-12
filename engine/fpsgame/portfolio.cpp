@@ -26,10 +26,10 @@ namespace portfolio
 {
     struct fragment
     {
-        string id;
+        string id, kind;   // kind : explore / parkour / arena (chapitres et objectifs)
         char *title;
         bool found;
-        fragment() : title(NULL), found(false) {}
+        fragment() : title(NULL), found(false) { kind[0] = '\0'; }
         ~fragment() { DELETEA(title); }
     };
 
@@ -98,6 +98,104 @@ namespace portfolio
         return NULL;
     }
 
+    // --- Histoire : chapitres et objectifs dans la console, inscriptions dans le monde ---
+    // Textes : alias pfstory_<clé> de packages/base/portfolio.cfg (générés depuis
+    // tools/content.py) ; « | » sépare les lignes.
+    static vector<char *> told;
+    static void say(const char *key, const char *color = "\f6", bool once = true)
+    {
+        if(once)
+        {
+            loopv(told) if(!strcmp(told[i], key)) return;
+            told.add(newstring(key));
+        }
+        defformatstring(name, "pfstory_%s", key);
+        const char *text = getalias(name);
+        if(!text || !text[0]) return;
+        for(const char *p = text; *p;)
+        {
+            const char *e = strchr(p, '|');
+            int len = e ? int(e - p) : int(strlen(p));
+            string line;
+            copystring(line, p, min(len + 1, int(sizeof(line))));
+            conoutf("%s%s", color, line);
+            color = "\f7";
+            if(!e) break;
+            p = e + 1;
+        }
+    }
+
+    static void countkind(const char *kind, int &found, int &total)
+    {
+        found = total = 0;
+        loopv(fragments) if(!strcmp(fragments[i]->kind, kind)) { total++; if(fragments[i]->found) found++; }
+    }
+
+    // objectif suivant (dans l'ordre de l'histoire, mais toutes les étapes restent libres)
+    static void objective()
+    {
+        static const char * const kinds[] = { "explore", "parkour", "arena" };
+        loopi(3)
+        {
+            int f, t;
+            countkind(kinds[i], f, t);
+            if(t && f < t)
+            {
+                defformatstring(name, "pfstory_goal_%s", kinds[i]);
+                const char *text = getalias(name);
+                if(text && text[0]) conoutf("\f2%s \f4(%d/%d)", text, f, t);
+                return;
+            }
+        }
+        const char *text = getalias("pfstory_goal_boss");
+        if(text && text[0]) conoutf("\f2%s", text);
+    }
+
+    struct sign { vec o; int color; char *text; sign() : color(0xFFFFFF), text(NULL) {} ~sign() { DELETEA(text); } };
+    static vector<sign *> signs;
+    // pfsign x y z couleur "texte" : inscription flottante (particules de texte d'origine)
+    ICOMMAND(pfsign, "fffis", (float *x, float *y, float *z, int *color, char *text),
+    {
+        sign *g = new sign;
+        g->o = vec(*x, *y, *z);
+        g->color = *color;
+        g->text = newstring(text);
+        signs.add(g);
+    });
+
+    static void rendersigns()
+    {
+        static int lastsign = 0;
+        if(lastmillis - lastsign < 90) return;
+        lastsign = lastmillis;
+        loopv(signs)
+        {
+            sign &g = *signs[i];
+            if(camera1->o.dist(g.o) > 700) continue;
+            string text;
+            const char *p = strstr(g.text, "{progress}");
+            if(p)
+            {
+                string head;
+                copystring(head, g.text, min(int(p - g.text) + 1, int(sizeof(head))));
+                formatstring(text, "%s%d/%d%s", head, numfound(), fragments.length(), p + strlen("{progress}"));
+            }
+            else copystring(text, g.text);
+            particle_textcopy(g.o, text, PART_TEXT, 140, g.color, 6.0f);
+        }
+    }
+
+    // Première prise d'une arme importante : une phrase d'histoire
+    void pickedup(int type)
+    {
+        switch(type)
+        {
+            case I_ROCKETS: say("loot_rockets", "\f2"); break;
+            case I_ROUNDS: say("loot_rounds", "\f2"); break;
+            case I_GRENADES: say("loot_grenades", "\f2"); break;
+        }
+    }
+
     static zone *arenazone(int a)
     {
         defformatstring(tag, "%d", a);
@@ -112,14 +210,16 @@ namespace portfolio
         f->found = true;
         if(detail && detail[0]) conoutf("\f2[%d/%d] \f7%s \f4- %s", numfound(), fragments.length(), f->title, detail);
         else conoutf("\f2[%d/%d] \f7%s", numfound(), fragments.length(), f->title);
-        if(numfound() >= fragments.length() && !bossasked)
-            conoutf(fr("\f0Les %d fragments sont restaurés ! Le boss final s'éveille au Colisée..."), fragments.length());
+        if(numfound() >= fragments.length()) say("boss", "\f3");
+        else objective();
     }
 
     void reset()
     {
         fragments.deletecontents();
         zones.deletecontents();
+        signs.deletecontents();
+        told.deletearrays();
         courses.deletecontents();
         current = -1;
         loopi(NUMARENAS) { arenaactive[i] = inarena[i] = false; lastarenamsg[i] = 0; }
@@ -129,10 +229,11 @@ namespace portfolio
     ICOMMAND(pfreset, "", (), reset());
 
     // pffragment id "titre"
-    ICOMMAND(pffragment, "ss", (char *id, char *title),
+    ICOMMAND(pffragment, "sss", (char *id, char *title, char *kind),
     {
         fragment *f = new fragment;
         copystring(f->id, id);
+        copystring(f->kind, kind);
         f->title = newstring(title);
         fragments.add(f);
     });
@@ -239,6 +340,24 @@ namespace portfolio
     // pfrawname : envoie N_SWITCHNAME sans passer par `name` (simule un client modifié,
     // pour vérifier que le serveur ignore tout changement de pseudo)
     ICOMMAND(pfrawname, "s", (char *s), game::addmsg(N_SWITCHNAME, "rs", s));
+    // pfammo : munitions du joueur local par arme (tests)
+    ICOMMAND(pfammo, "", (),
+    {
+        fpsent *d = game::player1;
+        if(d) conoutf("munitions fp%d sg%d cg%d rl%d ri%d gl%d pi%d", d->ammo[0], d->ammo[1], d->ammo[2], d->ammo[3], d->ammo[4], d->ammo[5], d->ammo[6]);
+    });
+    // pfitem x y : objet le plus proche du point (type, présent ou non) (tests)
+    ICOMMAND(pfitem, "ff", (float *x, float *y),
+    {
+        const vector<extentity *> &ents = entities::getents();
+        int best = -1; float bd = 1e9f;
+        loopv(ents) if(ents[i]->type >= I_SHELLS && ents[i]->type <= I_QUAD)
+        {
+            float dd = vec(*x, *y, ents[i]->o.z).dist(ents[i]->o);
+            if(dd < bd) { bd = dd; best = i; }
+        }
+        if(best >= 0) conoutf("objet %d type %d %s", best, ents[best]->type, ents[best]->spawned() ? "present" : "absent");
+    });
     // pflookat x y z : oriente la vue vers un point (tests automatisés)
     ICOMMAND(pflookat, "fff", (float *x, float *y, float *z),
     {
@@ -276,12 +395,13 @@ namespace portfolio
             if(z && d && (inarena[a] || z->inside(d->o))) grant(z->id, fr("vague nettoyée"));
             inarena[a] = false;
         }
-        else if(!strcmp(msg, "boss 1")) bossasked = true;
+        else if(!strcmp(msg, "boss 1")) { bossasked = true; say("boss", "\f3"); }
         else if(!strcmp(msg, "bossdown"))
         {
             if(bossdone) return;
             bossdone = true;
             if(pfend[0]) conoutf("\f0%s", pfend);
+            else say("end", "\f0", false);
         }
     }
 
@@ -313,6 +433,7 @@ namespace portfolio
                 if(z.kind == 1 && !c.armed && !c.done)
                 {
                     c.armed = true;
+                    say("parkour");
                     conoutf(fr("\f6%s : va jusqu'au bout ! (une chute te ramène au départ)"), c.title);
                 }
                 else if(z.kind == 2 && c.armed)
@@ -364,6 +485,7 @@ namespace portfolio
     void update()
     {
         spawnbubbles();
+        rendersigns();
         fpsent *d = game::player1;
         if(!d || d->state == CS_SPECTATOR || d->state == CS_EDITING) return;
 
@@ -373,6 +495,8 @@ namespace portfolio
         {
             needlight = false;
             if(pfautolight) execute("calclight -1");
+            say("intro");
+            objective();
             // Les monstres peuvent être initialisés avant la fin du chargement de la carte
             // (qui efface les points de passage) : on recharge le graphe de navigation.
             // Rechargement forcé : en multijoueur, le client a souvent déjà commencé à
@@ -414,6 +538,8 @@ namespace portfolio
                 fragment *f = getfragment(z->id);
                 if(f && f->found) continue;
                 lastarenamsg[i] = totalmillis;
+                say("arena");
+                say(i ? "arena1" : "arena0", "\f6");
                 game::addmsg(N_SERVCMD, "rs", i ? "pfarena 1" : "pfarena 0");
             }
         }
@@ -437,6 +563,7 @@ namespace portfolio
         zone &z = *zones[inside];
         bool first = !z.found;
         z.found = true;
+        if(first && z.tag[0]) say("explore");
         int taglen = strlen(z.tag);
         if(first && taglen && z.tag[taglen-1] == '*')
         {

@@ -8,12 +8,61 @@ panneaux (textures) et gen_map.py les zones/textes HUD (cubescript).
 """
 
 # --- Histoire --------------------------------------------------------------
-# Affichée uniquement via la console d'origine du jeu (messages courts) ; l'intro est
-# racontée par le portfolio avant d'afficher le jeu.
+# Racontée en jouant, par chapitres, dans la console d'origine du jeu (quelques phrases
+# courtes), plus des inscriptions flottantes dans le monde (SIGNS). Chaque entrée peut
+# tenir sur plusieurs lignes séparées par « | ».
 STORY = {
-    "end": ("Le boss est vaincu : le portfolio de Jules est réparé. Merci de ta visite ! "
-            "Écris-lui depuis le bureau de poste ou sur julesrogue.fr."),
+    "intro": ("Chapitre 1 - Le portfolio en panne|"
+              "Des virus ont fait planter le portfolio de Jules et l'ont éclaté en 10 fragments.|"
+              "Tu es le technicien appelé à la rescousse : retrouve-les pour le relancer."),
+    "explore": ("Chapitre 2 - Les salles du portfolio|"
+                "Chaque bâtiment garde un fragment : profil, compétences, projets, certificats, "
+                "Tux World, contact. Entre et lis les panneaux."),
+    "parkour": ("Chapitre 3 - Les hauteurs|"
+                "Deux fragments sont restés perchés. Saute jusqu'au bout : une chute te ramène au départ."),
+    "arena": ("Chapitre 4 - Les gardiens|"
+              "Les virus qui ont volé les derniers fragments gardent les arènes. "
+              "Élimine toute la vague : l'arène reste fermée pendant le combat."),
+    "arena0": "La banquise de Tux World : les virus y ont gelé un fragment. Abats-les tous !",
+    "arena1": "Le Colisée : la vague garde un fragment, et c'est ici que dort KernelPanic.",
+    "boss": ("Chapitre 5 - KernelPanic|"
+             "Les 10 fragments sont réunis... mais KernelPanic, le noyau corrompu qui a fait "
+             "planter le portfolio, se réveille au Colisée. Abats-le pour tout relancer !"),
+    "end": ("Épilogue - KernelPanic est vaincu et le portfolio de Jules redémarre. "
+            "Merci de ta visite ! Écris-lui depuis le bureau de poste ou sur julesrogue.fr."),
+    # objectif suivant, rappelé après chaque fragment (le compte est ajouté par le jeu)
+    "goal_explore": "Objectif : visite les bâtiments du portfolio",
+    "goal_parkour": "Objectif : termine les parcours des piliers (nord-est) et des poutres (sud-ouest)",
+    "goal_arena": "Objectif : nettoie les arènes de la banquise (sud-est) et du Colisée (sud)",
+    "goal_boss": "Objectif : affronte KernelPanic au Colisée",
+    # armes importantes trouvées sur la carte (première fois)
+    "loot_rockets": "Lance-roquettes trouvé : de quoi affronter les gardiens des arènes et KernelPanic.",
+    "loot_rounds": "Fusil trouvé : parfait pour toucher les virus de loin.",
+    "loot_grenades": "Lance-grenades trouvé : utile contre les vagues de virus.",
 }
+
+# Catégories de fragments (chapitres et objectifs)
+FRAGMENT_KIND = {"profil": "explore", "competences": "explore", "projets": "explore",
+                 "certificats": "explore", "tux": "explore", "contact": "explore",
+                 "pk1": "parkour", "pk2": "parkour",
+                 "arene_banquise": "arena", "arene_colisee": "arena"}
+
+# Inscriptions flottantes (texte en particules du moteur, sans nouvelle image) :
+# (x, y en voxels, hauteur au-dessus du sol en unités, couleur, texte)
+# « {progress} » est remplacé par le nombre de fragments retrouvés.
+SIGNS = [
+    (32.5, 31.5, 84, 0xFFC040, "Retrouve les 10 fragments du portfolio"),
+    (32.5, 31.5, 74, 0xFFFFFF, "Fragments : {progress}"),
+    (33, 21.5, 74, 0xFF6040, "COLISÉE - arène des virus"),
+    (33, 21.5, 66, 0xFFFFFF, "Élimine la vague pour libérer le fragment"),
+    (45.5, 23.5, 70, 0x80C0FF, "BANQUISE - arène de Tux World"),
+    (45.5, 23.5, 62, 0xFFFFFF, "Élimine la vague pour libérer le fragment"),
+    (43.5, 39.5, 52, 0xFFC040, "Parcours des piliers"),
+    (43.5, 39.5, 44, 0xFFFFFF, "Un fragment au sommet"),
+    (5.5, 4.5, 52, 0xFFC040, "Parcours des poutres"),
+    (5.5, 4.5, 44, 0xFFFFFF, "Prends le jump pad"),
+    (14.6, 31, 66, 0xFF8C3C, "GALERIE DES PROJETS"),
+]
 
 # --- Fragments : la boucle de progression -------------------------------------
 # exploration (6) -> parkour (2) -> combat (2) -> boss final

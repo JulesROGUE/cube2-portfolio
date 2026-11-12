@@ -267,8 +267,17 @@ def pigeonholes():
     return img
 
 
+def carpaint():
+    """Peinture de carrosserie rouge, reflet clair en haut."""
+    img = gradient(256, 256, (230, 60, 50), (120, 16, 14))
+    d = ImageDraw.Draw(img)
+    d.line([(0, 40), (255, 40)], fill=(255, 150, 140), width=6)
+    return img
+
+
 def map_textures():
     T = {
+        "carpaint": carpaint(),
         # Mobilier en géométrie (aucune texture équivalente dans le jeu de base)
         "books": books(),
         "rack": rack(),

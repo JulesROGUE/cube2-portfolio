@@ -96,7 +96,7 @@ TEX = {
     "trimwood": "ik2k/ik_wood_trimh64e.jpg",
     # mobilier en géométrie
     "books": "pf/books.jpg", "rack": ("pf/rack.jpg", 16), "screen": ("pf/screen.jpg", 16),
-    "pigeonholes": ("pf/pigeonholes.jpg", 16), "darkmetal": "tech1soc/flr_tmtl_drk.jpg",
+    "pigeonholes": ("pf/pigeonholes.jpg", 16), "carpaint": "pf/carpaint.jpg", "darkmetal": "tech1soc/flr_tmtl_drk.jpg",
     "lightwood": "ik2k/ik_floor_wood128b.jpg",
 }
 
@@ -1158,7 +1158,7 @@ for (x0, y0, m) in ((15.4, 13.8, "dcp/waterbowl"), (15.4, 15.6, "dcp/chest"), (1
     prop(m, x0 + 0.3, y0 + 0.3, 90 if x0 < 19 else 270, 14)
     light(x0 + 0.3, y0 + 0.3, (255, 220, 150), 60, 34)
 for x0 in (17.0, 20.85):
-    meuble(x0, x0 + 0.15, 15.2, 16.0, 0, 52, "darkmetal", yp="rug_red")         # kakémonos
+    meuble(x0, x0 + 0.15, 15.2, 16.0, 0, 52, "darkmetal", yp="cert_wall", yn="cert_wall")         # kakémonos
 braise(17.6, 17.2)
 braise(20.4, 17.2)
 light(17.6, 17.2, (255, 130, 50), 90, 26)
@@ -1169,9 +1169,8 @@ light(19, 15.6, (255, 225, 150), 120, 44)
 meuble(50.3, 51.0, 29.0, 34.2, 0, 14, "lightwood", xn="trimwood")              # guichet
 meuble(50.2, 51.1, 29.0, 34.2, 14, 15, "beam")
 for y in (29.05, 31.55, 34.05):
-    meuble(50.6, 50.7, y, y + 0.1, 15, 38, "darkmetal")                         # montants de l'hygiaphone
-meuble(50.6, 50.7, 29.05, 34.15, 38, 40, "darkmetal")
-meuble(50.55, 50.75, 30.6, 32.4, 40, 46, "trimwood", xn="post_floor")           # enseigne du guichet
+    meuble(50.6, 50.7, y, y + 0.1, 15, 28, "darkmetal")                         # montants de l'hygiaphone
+meuble(50.6, 50.7, 29.05, 34.15, 28, 29, "darkmetal")
 ecran(50.45, 50.55, 29.9, 30.7, 17, 23, "xn")                                   # terminal du guichet
 prop("dcp/cbbox", 50.65, 33.4, 0, 15)
 prop("objects/chair01", 51.9, 31.5, 270)
@@ -1205,10 +1204,17 @@ for y in (24.5, 36.5, 47.5):
 for y in (21.0, 50.0):
     prop("dcp/smplant", 12.5, y)
 light(11, 35, (120, 170, 255), 80, 20)
+light(11.5, 31, (255, 230, 200), 180, 40)                                     # entrée de la galerie
+# Comptoir d'accueil de chaque stand, côté allée, avec un écran tourné vers les visiteurs
+for (y0, y1, face) in ((24.6, 25.4, "garage_wall"), (27.15, 27.95, "neon_wall"), (42.6, 43.4, "arena_wall"),
+                       (49.8, 50.6, "os_wall")):
+    meuble(7.0, 8.6, y0, y1, 0, 14, "lightwood", xp=face, yn=face, yp=face)
+    meuble(6.95, 8.65, y0 - 0.05, y1 + 0.05, 14, 15, "beam")
+    ecran(8.25, 8.35, y0 + 0.1, y1 - 0.1, 17.5, 24, "xp")
 # Leboncoin (garage) : voiture rouge sur le pont, établi et panneau à outils, fûts
-meuble(4.9, 5.7, 21.9, 24.1, 3, 12, "rug_red")                                  # carrosserie
-meuble(4.95, 5.65, 21.9, 22.3, 12, 13, "rug_red")                               # capot
-meuble(5.0, 5.6, 22.5, 23.6, 12, 19, "darkmetal", xn="screen", xp="screen", yn="screen", yp="screen")  # habitacle vitré
+meuble(4.9, 5.7, 21.9, 24.1, 3, 12, "carpaint")                                  # carrosserie
+meuble(4.95, 5.65, 21.9, 22.3, 12, 13, "carpaint")                               # capot
+meuble(5.0, 5.6, 22.5, 23.6, 12, 19, "carpaint", xn="tux_wall", xp="tux_wall", yn="tux_wall", yp="tux_wall")  # habitacle vitré
 for wx in (4.8, 5.7):
     for wy in (22.2, 23.5):
         meuble(wx, wx + 0.1, wy, wy + 0.35, 0, 7, "darkmetal")                  # roues
@@ -1223,9 +1229,9 @@ light(5.3, 23, (255, 170, 90), 120, 34)
 # Magic Shape Generator : borne interactive et sculpture de formes néon
 meuble(6.0, 6.8, 28.8, 30.2, 0, 14, "darkmetal")                                # borne
 ecran(6.1, 6.2, 29.0, 30.0, 16, 28, "xp")
-meuble(4.4, 5.2, 30.6, 31.4, 0, 20, "neon_wall")                                 # sculpture : formes empilées
-meuble(4.55, 5.05, 30.75, 31.25, 20, 36, "rug_red")
-meuble(4.65, 4.95, 30.85, 31.15, 36, 48, "screen")
+meuble(4.4, 5.2, 30.6, 31.4, 0, 20, "tux_wall")                                 # sculpture : formes empilées
+meuble(4.55, 5.05, 30.75, 31.25, 20, 36, "carpaint")
+meuble(4.65, 4.95, 30.85, 31.15, 36, 48, "mine_floor")
 prop("dcp/groundlamp", 4, 28)
 light(6.6, 29.5, (230, 80, 255), 100, 26)
 light(4.8, 31.0, (80, 220, 255), 90, 40)

@@ -9,3 +9,5 @@ node_modules/
 # Sources tierces éventuellement téléchargées hors du dépôt
 third_party/
 __pycache__/
+dist-tess/
+tesseract/build/

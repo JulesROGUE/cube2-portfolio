@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Tesseract - prototype</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#canvas{display:block;width:100%;height:100%}</style></head>
+<body><canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
+<script>
+var params = new URLSearchParams(location.search);
+window.Module = { canvas: document.getElementById('canvas'),
+  arguments: ['-x' + (params.get('x') || 'map portfolio')],
+  print: function (t) { console.log(t); }, printErr: function (t) { console.warn(t); } };
+</script>
+<script src="tess-data.js"></script>
+<script src="tess.js" async></script>
+</body></html>

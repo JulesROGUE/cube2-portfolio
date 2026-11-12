@@ -21,7 +21,10 @@ for line in open(src, encoding="utf-8"):
         out.append(line.replace("autograss", "texgrass", 1))
         continue
     if cmd == "skylight":
-        out.append("skylight 0x404850")
+        out.append("skylight 0x8898B0")
+        continue
+    if cmd == "ambient":
+        out.append("ambient 0x303438")
         continue
     if cmd == "sunlightscale":
         out.append("sunlightscale 1.5")

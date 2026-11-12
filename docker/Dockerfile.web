@@ -1,4 +1,4 @@
-# Conteneur web : client WebAssembly (compilé ici avec Emscripten) + pont WebSocket <-> UDP.
+# Conteneur web : client WebAssembly (moteur Tesseract, compilé ici avec Emscripten) + pont WebSocket <-> UDP.
 ARG EMSDK_VERSION=6.0.6
 
 FROM emscripten/emsdk:${EMSDK_VERSION} AS wasm
@@ -11,23 +11,23 @@ COPY scripts/fetch-assets.sh ./scripts/
 RUN FETCH_ONLY=1 ./scripts/fetch-assets.sh
 COPY tools/prepare_sauer.py tools/sauer_assets.txt ./tools/
 RUN ./scripts/fetch-assets.sh
-# 1) le moteur seul (couche mise en cache tant que engine/ ne change pas)
-COPY engine/ ./engine/
-RUN make -C engine web -j"$(nproc)" WEB_OUT=/src/dist/cube2
-# 2) données, carte, coquille web
+# 1) le moteur Tesseract seul (couche mise en cache tant que tesseract/ ne change pas)
+COPY tesseract/ ./tesseract/
+RUN make -C tesseract web -j"$(nproc)" WEB_OUT=/src/dist-tess/cube2
+# 2) données (ressources de Sauerbraten rangées pour Tesseract), carte, coquille web
 COPY game/ ./game/
 COPY tools/ ./tools/
 COPY web/ ./web/
 COPY scripts/ ./scripts/
-RUN JOBS="$(nproc)" ./scripts/build-web.sh \
- && cd dist/cube2 && for f in *.wasm *.data *.js *.html *.css; do gzip -9 -k "$f"; done
+RUN JOBS="$(nproc)" ./scripts/build-tess.sh \
+ && cd dist-tess/cube2 && for f in *.wasm *.data *.js *.html *.css; do gzip -9 -k "$f"; done
 
 FROM node:22-alpine
 WORKDIR /app
 COPY server/package.json server/package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY server/relay.js ./
-COPY --from=wasm /src/dist/cube2/ ./public/
+COPY --from=wasm /src/dist-tess/cube2/ ./public/
 ENV PORT=8080 PREFIX=/cube2 CUBE2_SERVER_HOST=cube2-server CUBE2_SERVER_PORT=28785
 USER node
 EXPOSE 8080

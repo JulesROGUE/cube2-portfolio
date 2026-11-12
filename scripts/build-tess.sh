@@ -19,6 +19,8 @@ echo "==> Système de fichiers"
 mkdir -p "$FS/media/texture" "$FS/media/model" "$FS/media/map" "$FS/media/sound" "$FS/media/particle" "$FS/media/interface"
 cp -r tesseract/config "$FS/config"
 python3 tools/tess_config.py build/sauer/data game/data/portfolio.cfg "$FS/config"
+cp tesseract/webconfig/ui.cfg "$FS/config/ui.cfg"
+rm -f "$FS/config/ui/fkey.cfg" "$FS/config/ui/edithud.cfg" "$FS/config/ui/serverbrowser.cfg" "$FS/config/ui/stats.cfg" "$FS/config/ui/scoreboard.cfg"
 # textures (paquets Sauerbraten, dont textures maison) ; décors, joueurs, armes, monstres
 for d in build/sauer/packages/*/; do n=$(basename "$d"); case "$n" in models|sounds|particles) ;; *) cp -r "$d" "$FS/media/texture/$n";; esac; done
 cp -r build/gamedata/packages/. "$FS/media/texture/"

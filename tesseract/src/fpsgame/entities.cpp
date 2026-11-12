@@ -15,6 +15,8 @@ namespace entities
         // PORTFOLIO (moteur Tesseract) : décor de Sauerbraten (attr1 = angle, attr2 = numéro)
         // -> ordre de Tesseract (attr1 = numéro, attr2 = angle)
         if(e.type == MAPMODEL) swap(e.attr1, e.attr2);
+        // lumières de la carte : sans ombres (seul le soleil en projette, pour la fluidité en WebGL)
+        if(e.type == LIGHT) e.attr5 |= L_NOSHADOW;
         if(ver <= 30) switch(e.type)
         {
             case FLAG:

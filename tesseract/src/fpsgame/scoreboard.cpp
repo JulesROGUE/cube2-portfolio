@@ -151,6 +151,25 @@ namespace game
     // (config/ui), alimentée par les commandes ci-dessous ; plus de menu g3d.
     void g3d_gamemenus() {}
 
+    // Commandes du tableau des scores de l'interface (config/ui.cfg)
+    ICOMMAND(loopscoreboard, "re", (ident *id, uint *body),
+    {
+        vector<fpsent *> list;
+        list.add(player1);
+        loopv(players) if(players[i] != player1 && players[i]->state != CS_SPECTATOR) list.add(players[i]);
+        list.sort(playersort);
+        loopstart(id, stack);
+        loopv(list)
+        {
+            loopiter(id, stack, list[i]->clientnum);
+            execute(body);
+        }
+        loopend(id, stack);
+    });
+    ICOMMAND(getclientcolorname, "i", (int *cn), { fpsent *d = getclient(*cn); if(d) result(colorname(d)); });
+    ICOMMAND(getclientfrags, "i", (int *cn), { fpsent *d = getclient(*cn); intret(d ? d->frags : 0); });
+    ICOMMAND(getclientping, "i", (int *cn), { fpsent *d = getclient(*cn); intret(d ? d->ping : 0); });
+
     void showscores(bool on)
     {
         if(on) execute("showui scoreboard");

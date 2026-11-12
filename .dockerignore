@@ -5,3 +5,5 @@ engine/build
 **/node_modules
 *.log
 third_party
+dist-tess
+tesseract/build

@@ -56,6 +56,7 @@ for l in open(f"{sauerdata}/defaults.cfg", encoding="latin-1"):
         continue
     lines.append(rename_keys(l))
 lines.append('bind ESCAPE [togglemainmenu]')
+lines.append('avatarfov 100   // armes à la 1re personne de Sauerbraten : champ de vision du joueur')
 open(f"{out}/default.cfg", "w", encoding="utf-8").write("\n".join(lines) + "\n")
 
 # --- game.cfg : sons, réglages du jeu, visite ------------------------------------

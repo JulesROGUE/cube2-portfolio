@@ -1646,6 +1646,7 @@ struct animmodel : model
 
     virtual void loaded()
     {
+        scale /= 4;   // PORTFOLIO : modèles de Sauerbraten (le moteur d'origine divisait leur échelle par 4)
         loopv(parts) parts[i]->loaded();
     }
 

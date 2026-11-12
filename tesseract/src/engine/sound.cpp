@@ -446,7 +446,7 @@ static struct soundtype
     {
         return chan.inuse && config.hasslot(chan.slot, slots);
     }
-} gamesounds("game/"), mapsounds("mapsound/");
+} gamesounds(""), mapsounds("");   // PORTFOLIO : sons de Sauerbraten rangés dans media/sound/
 
 void registersound(char *name, int *vol) { intret(gamesounds.addsound(name, *vol, 0)); }
 COMMAND(registersound, "si");

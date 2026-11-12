@@ -7,7 +7,7 @@ EMCC  ?= emcc
 INCLUDES = -Isrc/shared -Isrc/engine -Isrc/fpsgame -Isrc/enet/include
 COMMONFLAGS = -fsigned-char -fno-exceptions -fno-rtti -w
 WEB_OPT ?= -O2
-WEB_DEBUG ?= --profiling-funcs
+WEB_DEBUG ?=
 WEB_PORTS = -sUSE_ZLIB=1 -sUSE_SDL=2 -sUSE_SDL_IMAGE=2 -sSDL2_IMAGE_FORMATS='["png","jpg"]' -sUSE_SDL_MIXER=2 -sSDL2_MIXER_FORMATS='["ogg"]'
 WEB_CXXFLAGS = $(WEB_OPT) -std=gnu++14 $(COMMONFLAGS) $(WEB_PORTS) $(INCLUDES) -DPORTFOLIO_WEB
 ENET_SRCS = callbacks.c compress.c host.c list.c packet.c peer.c protocol.c unix.c

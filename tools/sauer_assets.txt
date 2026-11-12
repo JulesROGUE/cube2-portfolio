@@ -66,13 +66,10 @@ packages/models/monster/hellpig/
 
 # --- Décors (mapmodels) ----------------------------------------------------------------
 packages/models/dcp/plant1/
-packages/models/dcp/bench/
 packages/models/dcp/console/
 packages/models/dcp/biotank/
 packages/models/dcp/vent/
-packages/models/dcp/valve/
 packages/models/dcp/barrel/
-packages/models/dcp/cart/
 packages/models/dcp/cask/
 packages/models/dcp/firebowl/
 packages/models/dcp/pillar/
@@ -80,7 +77,6 @@ packages/models/dcp/turret/
 packages/models/dcp/mushroom/
 packages/models/dcp/grass/
 packages/models/dcp/palmtree/
-packages/models/dcp/chandelier/
 packages/models/dcp/sack/
 packages/models/dcp/chest/
 packages/models/dcp/candle/
@@ -98,30 +94,13 @@ packages/models/dcp/cbbox/
 packages/models/dcp/palette/
 # petits décors des pièces (licences : textes fournis avec chaque pack)
 packages/models/mitaman/locker1/
-packages/models/mitaman/locker3/
 packages/models/psionic/barrel2/
-packages/models/psionic/crate4/
 packages/models/psionic/Psionic permission.txt
 packages/models/xeno/box1/
-packages/models/xeno/box2/
 packages/models/xeno/Xeno permission.txt
 # habillage des salles
-packages/models/mitaman/floorgrate1/
-packages/models/dcp/ivy/
-packages/models/dcp/bulb/
-packages/models/dcp/hanginlamp/
-packages/models/dcp/ventflap/
 packages/models/dcp/waterbowl/
-packages/models/objects/lamp02/
-packages/models/objects/torch/
-packages/models/objects/oillamp/
-packages/models/aftas/machina/
-packages/models/aftas/lampada/
-packages/models/aftas/arvores/
-packages/models/mapmodels/toca/radioactivedrum/
-packages/models/mapmodels/toca/license.txt
 packages/models/razgriz/rocks/
-packages/models/razgriz/objects/torch/
 packages/ik2k/ik_woodv256a.jpg
 packages/ik2k/ik_wood_planks128d.jpg
 packages/ik2k/ik_wood_trimh64e.jpg
@@ -130,12 +109,7 @@ packages/philipk/pk01_panel03a_d.jpg
 packages/philipk/pk01_gra_floor01_d.jpg
 packages/ikbase/ik_floor_met1f.jpg
 packages/ikbase/ik_wtrimh_64a.jpg
-packages/models/objects/table01/
 packages/models/objects/chair01/
-packages/models/objects/lamp01/
-packages/models/objects/sign01/
-packages/models/objects/minekart/
-packages/models/objects/lantern01/
 packages/models/objects/well_base/
 packages/models/objects/well_roof/
 packages/models/objects/bench01/

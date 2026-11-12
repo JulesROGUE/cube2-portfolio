@@ -94,6 +94,10 @@ TEX = {
     "metalfloor": "ikbase/ik_floor_met1f.jpg", "metaltrim": "ikbase/ik_wtrimh_64a.jpg",
     "panelwall": "philipk/pk01_panel03a_d.jpg", "grafloor": "philipk/pk01_gra_floor01_d.jpg",
     "trimwood": "ik2k/ik_wood_trimh64e.jpg",
+    # mobilier en géométrie
+    "books": "pf/books.jpg", "rack": ("pf/rack.jpg", 16), "screen": ("pf/screen.jpg", 16),
+    "pigeonholes": ("pf/pigeonholes.jpg", 16), "darkmetal": "tech1soc/flr_tmtl_drk.jpg",
+    "lightwood": "ik2k/ik_floor_wood128b.jpg",
 }
 
 addtex("sky", 'texture 0 "textures/sky.png"')
@@ -484,8 +488,9 @@ def beam(room, along, at, z=None):
 
 _rooms = {r.rid: r for r in ROOMS}
 _rooms.update(STANDROOMS)
-for at in (44, 47):
+for at in (43, 48):
     beam(_rooms["profil"], "x", at)
+for at in (44, 47):
     beam(_rooms["competences"], "x", at)
 for at in (14, 17):
     beam(_rooms["certificats"], "x", at)
@@ -644,6 +649,8 @@ _cache = {}
 
 def leafkey(x, y, z):
     v = idx(x, y, z)
+    if v in FURN:
+        return ("f", v)
     if not solid[v]:
         return ("e", material.get(v, 0))
     if v in shape:
@@ -678,6 +685,8 @@ def build(x, y, z, size, out):
         if key is None:
             out.append(struct.pack("<B", OCTSAV_CHILDREN))
             build(cx, cy, cz, half, out)
+        elif key[0] == "f":
+            furn_node(cx * VOX, cy * VOX, cz * VOX, VOX, FURN[key[1]], out)
         elif key[0] == "e":
             if key[1]:
                 out.append(struct.pack("<B6HH", OCTSAV_EMPTY | 0x40, *(EMPTYTEX + (key[1],))))
@@ -690,6 +699,211 @@ def build(x, y, z, size, out):
                 out.append(struct.pack("<B12B6H", OCTSAV_NORMAL, *(key[7:19] + key[1:7])))
         else:
             out.append(struct.pack("<B6H", OCTSAV_SOLID, *key[1:]))
+
+# ---------------------------------------------------------------------------
+# Mobilier en géométrie : boîtes à l'échelle du joueur (1 unité près), découpées en
+# sous-cubes de l'octree (un voxel de 32 unités est subdivisé jusqu'à 1 unité).
+# ---------------------------------------------------------------------------
+FURNBOXES = []     # (x0, y0, z0, x1, y1, z1, textures des 6 faces) en unités du monde
+FURN = {}          # voxel -> boîtes qui le touchent
+
+
+def meuble(x0, x1, y0, y1, z0, z1, tex, **faces):
+    """Boîte de mobilier : x, y en voxels (flottants), z en unités au-dessus du sol intérieur.
+    tex = texture de toutes les faces ; faces : xn, xp, yn, yp, bas, haut (DIRS)."""
+    keys = ("xn", "xp", "yn", "yp", "bas", "haut")
+    t6 = tuple(TEXIDX[faces.get(k, tex)] for k in keys)
+    r = lambda v: int(v + 0.5) if v >= 0 else -int(-v + 0.5)        # arrondi à l'unité (pas d'arrondi pair)
+    b = (r(x0 * VOX), r(y0 * VOX), r(GROUND + z0), r(x1 * VOX), r(y1 * VOX), r(GROUND + z1), t6)
+    assert b[3] > b[0] and b[4] > b[1] and b[5] > b[2], b
+    FURNBOXES.append(b)
+    for vz in range(b[2] // VOX, (b[5] - 1) // VOX + 1):
+        for vy in range(b[1] // VOX, (b[4] - 1) // VOX + 1):
+            for vx in range(b[0] // VOX, (b[3] - 1) // VOX + 1):
+                v = idx(vx, vy, vz)
+                assert not solid[v], ("meuble dans un mur", vx, vy, vz)
+                FURN.setdefault(v, []).append(b)
+                if b[2] < GROUND + 18:
+                    propblock.add((vx, vy))
+    return b
+
+
+def furn_node(ox, oy, oz, s, boxes, out):
+    inter = []
+    for b in boxes:
+        c = (max(b[0], ox), max(b[1], oy), max(b[2], oz), min(b[3], ox + s), min(b[4], oy + s), min(b[5], oz + s))
+        if c[3] > c[0] and c[4] > c[1] and c[5] > c[2]:
+            inter.append((c, b[6]))
+    if not inter:
+        out.append(struct.pack("<B6H", OCTSAV_EMPTY, *EMPTYTEX))
+        return
+    for c, t in inter:
+        if c == (ox, oy, oz, ox + s, oy + s, oz + s):
+            out.append(struct.pack("<B6H", OCTSAV_SOLID, *t))
+            return
+    e = s / 8.0
+    def ok(c):
+        return all(abs((c[i] - (ox, oy, oz)[i % 3]) / e - round((c[i] - (ox, oy, oz)[i % 3]) / e)) < 1e-6 for i in range(6))
+    if (len(inter) == 1 and ok(inter[0][0])) or s <= 1:
+        c, t = inter[0]
+        r = [int(round((c[i] - (ox, oy, oz)[i % 3]) / e)) for i in range(6)]
+        if r[3] <= r[0] or r[4] <= r[1] or r[5] <= r[2]:
+            out.append(struct.pack("<B6H", OCTSAV_EMPTY, *EMPTYTEX))
+            return
+        out.append(struct.pack("<B12B6H", OCTSAV_NORMAL, *(box_edges(r[0], r[3], r[1], r[4], r[2], r[5]) + t)))
+        return
+    out.append(struct.pack("<B", OCTSAV_CHILDREN))
+    h = s // 2
+    for i in range(8):
+        furn_node(ox + (h if i & 1 else 0), oy + (h if i & 2 else 0), oz + (h if i & 4 else 0), h, inter_boxes(inter), out)
+
+
+def inter_boxes(inter):
+    return [c + (t,) for c, t in inter]
+
+
+def furn_top(x, y, below):
+    """Plus haut dessus de mobilier sous la hauteur `below` (unités absolues) au point (x, y) en unités."""
+    best = None
+    for b in FURNBOXES:
+        if b[0] <= x <= b[3] and b[1] <= y <= b[4] and b[5] <= below + 1.5:
+            best = b[5] if best is None else max(best, b[5])
+    return best
+
+
+def furn_bottom(x, y, above):
+    """Plus bas dessous de mobilier au-dessus de `above` au point (x, y)."""
+    best = None
+    for b in FURNBOXES:
+        if b[0] <= x <= b[3] and b[1] <= y <= b[4] and b[2] >= above - 1.5:
+            best = b[2] if best is None else min(best, b[2])
+    return best
+
+
+# ---------------------------------------------------------------------------
+# Boîtes englobantes des mapmodels (lues dans les fichiers du jeu de base) :
+# md2 / md3 / obj, mdlscale (pourcentage, divisé par 4 par le moteur), mdltrans.
+# ---------------------------------------------------------------------------
+_bounds = {}
+
+
+def model_bounds(name):
+    if name in _bounds:
+        return _bounds[name]
+    import re
+    res = None
+    for root in SEARCH:
+        d = os.path.join(root, "packages", "models", name)
+        if not os.path.isdir(d):
+            continue
+        cfg, cfgname = "", None
+        for c in ("md2.cfg", "md3.cfg", "obj.cfg"):
+            if os.path.exists(os.path.join(d, c)):
+                cfg, cfgname = open(os.path.join(d, c), encoding="latin-1").read(), c
+                break
+        if re.search(r"mdlpitch|mdlyaw", cfg):
+            raise SystemExit("décor %s : mdlpitch / mdlyaw non pris en charge par la vérification" % name)
+        sc = 1.0
+        m = re.search(r"mdlscale\s+([-\d.]+)", cfg)
+        if m:
+            sc = float(m.group(1)) / 100
+        tr = (0.0, 0.0, 0.0)
+        m = re.search(r"mdltrans\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)", cfg)
+        if m:
+            tr = tuple(map(float, m.groups()))
+        kind = (cfgname or "md2.cfg")[:3]
+        m = re.search(r"%sload\s+\"?([^\s\"]+)" % kind, cfg)
+        f = os.path.join(d, m.group(1) if m else {"md2": "tris.md2", "md3": "tris.md3", "obj": "tris.obj"}[kind])
+        if not os.path.exists(f):
+            continue
+        b = open(f, "rb").read()
+        if kind == "md2":
+            nv, ofs = struct.unpack("<i", b[24:28])[0], struct.unpack("<i", b[56:60])[0]
+            fs = struct.unpack("<3f", b[ofs:ofs + 12])
+            ft = struct.unpack("<3f", b[ofs + 12:ofs + 24])
+            vs = [(b[ofs + 40 + i * 4] * fs[0] + ft[0], -(b[ofs + 41 + i * 4] * fs[1] + ft[1]),
+                   b[ofs + 42 + i * 4] * fs[2] + ft[2]) for i in range(nv)]
+        elif kind == "md3":
+            ofs = struct.unpack("<i", b[92:96])[0]
+            mn, mx = struct.unpack("<3f", b[ofs:ofs + 12]), struct.unpack("<3f", b[ofs + 12:ofs + 24])
+            vs = [mn, mx]
+        else:
+            vs = []
+            for l in b.decode("latin-1").splitlines():
+                if l.startswith("v "):
+                    px, py, pz = map(float, l.split()[1:4])
+                    vs.append((pz, -px, py))
+        lo = tuple((min(v[i] for v in vs) + tr[i]) * sc / 4 for i in range(3))
+        hi = tuple((max(v[i] for v in vs) + tr[i]) * sc / 4 for i in range(3))
+        res = (lo, hi)
+        break
+    _bounds[name] = res
+    return res
+
+
+FIREMODELS = {"dcp/firebowl", "dcp/candle"}
+ASSEMBLAGES = {"objects/well_roof": "objects/well_base"}
+
+
+def verifier_decors():
+    """Chaque décor doit être posé (sol, relief ou dessus d'un meuble), suspendu à un plafond
+    ou à un meuble, sans entrer dans un mur ; chaque flamme doit sortir d'un brasero ou d'une
+    bougie ; aucun objet ni départ dans un meuble."""
+    import math
+    errs = []
+    fires = []
+    for e in ENTS:
+        if e[8] != ET_MAPMODEL:
+            continue
+        name = MAPMODELS[e[4]]
+        bb = model_bounds(name)
+        if bb is None:
+            errs.append("%s : modèle introuvable" % name)
+            continue
+        (lx, ly, lz), (hx, hy, hz) = bb
+        x, y, z = e[0], e[1], e[2]
+        bottom, top = z + lz, z + hz
+        vx, vy = x / VOX, y / VOX
+        room = roomof[idx(int(vx), int(vy), FLOOR)]
+        ground = GROUND + (0 if room else terrainh(vx, vy))
+        ft = furn_top(x, y, bottom)
+        sup = max(ground, ft) if ft is not None else ground
+        posed = -4 <= bottom - sup <= 1.5          # légèrement enfoncé : toléré ; flottant : refusé
+        if name in ASSEMBLAGES:                       # pièce posée sur un autre décor au même endroit
+            posed = any(f[8] == ET_MAPMODEL and MAPMODELS[f[4]] == ASSEMBLAGES[name] and f[:3] == e[:3] for f in ENTS)
+        # suspendu : plafond (voxel plein au-dessus) ou dessous d'un meuble
+        fb = furn_bottom(x, y, top)
+        cz = int(math.floor((top + 0.5) / VOX))
+        ceil = (0 <= cz < N and solid[idx(int(vx), int(vy), cz)] and abs(top - cz * VOX) <= 1.5)
+        pendu = hz <= 0.5 and (ceil or (fb is not None and abs(top - fb) <= 1.5))
+        if not (posed or pendu):
+            errs.append("%s en (%.2f, %.2f) : bas %.1f / haut %.1f, support %.1f -> ni posé ni suspendu"
+                        % (name, vx, vy, bottom - GROUND, top - GROUND, sup - GROUND))
+        # emprise : les coins (tournés selon yaw) ne doivent pas entrer dans un voxel plein
+        a = math.radians(e[3])
+        zz = int((max(bottom, ground) + 2) // VOX)
+        for (px, py) in ((lx / 2, ly / 2), (hx / 2, ly / 2), (lx / 2, hy / 2), (hx / 2, hy / 2)):
+            wx = x + px * math.cos(a) - py * math.sin(a)
+            wy = y + px * math.sin(a) + py * math.cos(a)
+            v = idx(int(wx // VOX), int(wy // VOX), zz)
+            if solid[v] and v not in shape:
+                errs.append("%s en (%.2f, %.2f) : entre dans un mur" % (name, vx, vy))
+                break
+        if name in FIREMODELS:
+            fires.append((x + (lx + hx) / 2, y + (ly + hy) / 2, top))
+    for e in ENTS:
+        if e[8] == ET_PARTICLES and e[3] == 0:
+            if not any(math.hypot(e[0] - fx, e[1] - fy) <= 6 and -3 <= e[2] - fz <= 8 for (fx, fy, fz) in fires):
+                errs.append("flamme en (%.2f, %.2f, %d) sans brasero ni bougie" % (e[0] / VOX, e[1] / VOX, e[2] - GROUND))
+        if e[8] == ET_PLAYERSTART or I_SHELLS <= e[8] <= I_QUAD:
+            for b in FURNBOXES:
+                if b[0] - 8 < e[0] < b[3] + 8 and b[1] - 8 < e[1] < b[4] + 8 and b[2] < e[2] + 4 and b[5] > e[2] - 20:
+                    errs.append("objet / départ en (%.2f, %.2f) contre un meuble" % (e[0] / VOX, e[1] / VOX))
+                    break
+    if errs:
+        raise SystemExit("Décors mal posés :\n  " + "\n  ".join(errs))
+    return len([e for e in ENTS if e[8] == ET_MAPMODEL])
+
 
 # ---------------------------------------------------------------------------
 # Entités : départs, monstres, lumières, décors du jeu de base, objets, ambiances
@@ -757,7 +971,7 @@ TREES = ((22, 6, "dcp/tree2"), (44, 4, "dcp/tree3"), (40, 37, "dcp/tree2"), (22,
          (60, 47, "dcp/tree3"), (24, 9, "dcp/tree2"), (10, 17, "dcp/tree3"), (45, 38, "dcp/palmtree"))
 for (x, y, m) in TREES:
     prop(m, x + 0.5, y + 0.5, 0, 0, 1)
-for (x, y) in ((24.5, 40.5), (39.5, 40.5), (13.5, 22.5), (24.5, 22.5), (45.5, 27.5), (45.5, 36.5), (33.5, 52.5)):
+for (x, y) in ((24.5, 40.5), (39.5, 40.5), (14.4, 22.5), (24.5, 22.5), (44.5, 27.5), (44.5, 36.5), (33.5, 52.5)):
     prop("dcp/plant1", x, y, 0, 0, 0)                 # buissons au pied des bâtiments
 for (x, y) in ((28.5, 52.5), (31.5, 52.5), (25.5, 56.5)):
     prop("dcp/leafs", x, y)                           # végétation autour de l'étang
@@ -783,14 +997,6 @@ for r in ROOMS:
         light(lx, ly, col, 150, 80)
 
 # --- Profil : bureau / bibliothèque ----------------------------------------------
-prop("objects/table01", 16.5, 46.5, 90)
-prop("objects/chair01", 17.5, 46.5, 270)
-prop("objects/lamp01", 15.6, 49.3)
-prop("dcp/plant1", 22.3, 42.7)
-prop("dcp/vase", 22.3, 49.3)
-prop("dcp/smplant", 15.6, 42.7)
-prop("dcp/bin", 22.4, 45.6)
-prop("xeno/box1", 15.8, 44.6, 20)
 light(19, 46, (255, 214, 150), 240)
 item(I_CARTRIDGES, 20, 44)
 item(I_HEALTH, 21, 48)
@@ -798,30 +1004,13 @@ monster_spawn(21, 49, 270)
 ambience("ambience/fire_light", 19, 46, 190, 80)
 
 # --- Compétences : salle serveur -------------------------------------------------
-for y in (43.5, 46, 48.5):
-    prop("dcp/console", 37.4, y, 180)
-prop("dcp/biotank", 28, 43)
-prop("dcp/biotank", 28, 49)
-prop("mitaman/locker1", 27.6, 45.5, 90)
-prop("mitaman/locker3", 27.6, 46.6, 90)
-prop("psionic/barrel2", 29.2, 42.6)
-prop("dcp/vent", 33, 49.6, 180)
-light(31, 46, (120, 180, 255), 220)
-light(36, 46, (80, 255, 170), 200)
+light(32.5, 46, (120, 170, 230), 240)
 item(I_ROUNDS, 33, 44)
 item(I_HEALTH, 33, 49)
 monster_spawn(36, 49, 270)
 ambience("razgriz/energy_hum_01", 32.5, 46, 210, 90)
 
 # --- Certificats : salle des trophées --------------------------------------------
-prop("dcp/vase", 15.6, 13)
-prop("dcp/vase", 15.6, 19)
-prop("dcp/chest", 22.3, 13, 180)
-prop("objects/lantern01", 15.1, 16, 0, 40)
-prop("dcp/candle", 22.4, 15)
-prop("dcp/candle", 22.4, 17)
-prop("dcp/smplant", 15.6, 17.6)
-prop("dcp/cbbox", 21.6, 19.3)
 light(19, 16, (255, 220, 140), 240)
 item(I_YELLOWARMOUR, 20, 13)
 item(I_GRENADES, 21, 18)
@@ -836,15 +1025,6 @@ ENTS.append((W(49.5), W(15), GROUND + 200, 13, 256 + 14, 220, 0xFFF, 6000, ET_PA
 ambience("razgriz/high_wind_01", 49.5, 15, 260, 120)
 
 # --- Contact : bureau de poste ------------------------------------------------------
-prop("objects/table01", 52.5, 32, 0)
-prop("objects/sign01", 47, 35.3, 0)
-for (x, y) in ((53.2, 29), (53.4, 30), (52.6, 29.5)):
-    prop("dcp/sack", x, y)
-prop("dcp/chest", 53, 35, 180)
-prop("xeno/box1", 46.8, 28.8)
-prop("xeno/box2", 47.7, 28.7, 30)
-prop("dcp/cbbox", 53.4, 33.2)
-prop("dcp/bin", 46.7, 33.4)
 light(50, 32, (255, 240, 200), 240)
 item(I_HEALTH, 48, 34.5)
 item(I_BOOST, 48, 29.5)
@@ -857,58 +1037,31 @@ light(11, 45, (255, 250, 240), 260)
 monster_spawn(11, 22, 90)
 monster_spawn(11, 50, 270)
 # Leboncoin : garage
-prop("objects/minekart", 6, 23, 0)
-prop("dcp/barrel", 3.6, 20.6)
-prop("dcp/barrel", 3.6, 25.3)
-prop("dcp/cask", 8.3, 20.7)
-prop("dcp/cart", 8.2, 25.2, 0)
-prop("psionic/barrel2", 4.3, 22.1)
-prop("dcp/palette", 7.6, 21.5)
 light(6, 23, (255, 190, 120), 170)
 item(I_BULLETS, 7.5, 23)
 ambience("ambience/distant_cars", 6, 23, 120, 50)
 # Magic Shape Generator : salle néon, braseros et lampes
-prop("dcp/groundlamp", 4, 28)
-prop("dcp/groundlamp", 4, 31)
-prop("dcp/firebowl", 8.3, 27.6)
-prop("dcp/firebowl", 8.3, 31.4)
 light(6, 29.5, (230, 80, 255), 170)
 item(I_GRENADES, 4, 29.5)
 ambience("ambience/creek", 6, 29.5, 120, 50)
 # Mineport : voxels à ciel ouvert, champignons géants
-prop("dcp/mushroom", 4.5, 36.5)
-prop("dcp/mushroom", 7.5, 33.5)
-prop("dcp/grass", 6, 36)
-prop("dcp/grass", 5, 34)
-prop("dcp/reed", 7.4, 37.4)
 item(I_SHELLS, 6, 35.5)
 ambience("ambience/forest1", 6, 35.5, 120, 50)
 # Cube 2 : arène
-prop("dcp/pillar", 4, 40)
-prop("dcp/pillar", 4, 43)
-prop("dcp/turret", 8.2, 41.5, 180)
-prop("aftas/caixa", 6.5, 39.8)
-prop("aftas/caixa", 6.5, 43.2)
-prop("psionic/crate4", 8.3, 43.8)
 light(6, 41.5, (255, 110, 80), 170)
 item(I_ROCKETS, 5.5, 41.5)
 item(I_ROUNDS, 8, 40)
 monster_spawn(5, 43.5, 0)
 ambience("akari/stadiumsound", 6, 41.5, 120, 50)
 # Portfolio OS : postes de travail devant le fond d'écran Ubuntu
-prop("dcp/console", 3.6, 46.5, 0)
-prop("dcp/console", 3.6, 49.5, 0)
-prop("objects/table01", 6.8, 48, 0)
-prop("objects/chair01", 7.8, 48, 180)
-prop("dcp/bin", 8.4, 49.5)
-prop("dcp/smplant", 3.8, 48)
 light(6, 48, (255, 160, 110), 170)
 item(I_GREENARMOUR, 8, 46)
 ambience("soundsnap/fan", 6, 48, 120, 50)
 
-# --- Habillage des salles (décors du jeu de base, voir CREDITS.md) -------------------
-# Rien sur les portes, les allées centrales, les objets à ramasser ni les départs :
-# les décors longent les murs ; « block » réserve leurs cellules (pas de point de passage).
+# --- Mobilier et décors des salles (voir CREDITS.md) ---------------------------------
+# Mobilier en géométrie à l'échelle du joueur (15 unités de haut, yeux à 14) : bureaux,
+# bibliothèques, baies, guichet, podium, stands. Portes, allées, objets à ramasser et
+# départs restent libres ; verifier_decors() refuse tout décor flottant ou dans un mur.
 
 
 def outside_ok(x, y):
@@ -921,107 +1074,193 @@ def particles(x, y, z, ptype, a2=0, a3=0, a4=0):
     ENTS.append((W(x), W(y), GROUND + z, ptype, a2, a3, a4, 0, ET_PARTICLES))
 
 
-# Profil (CV) : bureau-bibliothèque, archives, lustre, tapis de parquet
-for y in (46.9, 48.0):
-    prop("mitaman/locker1", 22.6, y, 270, 0, 0)              # armoires d'archives (CV, diplômes)
-prop("mitaman/locker3", 15.35, 48.1, 90, 0, 0)
-prop("objects/lamp02", 16.0, 43.6)                           # lampe de lecture
-prop("dcp/chandelier", 19, 46.5, 0, 84)                      # lustre
-prop("objects/chair01", 20.3, 47.4, 200)
-prop("dcp/smplant", 22.4, 44.2)
-prop("dcp/ivy", 15.2, 45.5, 90, 40)                          # lierre au mur
-light(19, 46.5, (255, 190, 120), 170, 80)
-light(16.5, 46.5, (255, 220, 160), 90, 40)                   # lampe du bureau
-prop("objects/chair01", 17.6, 47.6, 160)
-prop("dcp/vase", 22.5, 43.2)
-prop("dcp/bin", 21.6, 42.4)
-prop("dcp/plant1", 17.4, 49.5)
-prop("xeno/box1", 15.5, 47.0, 20)
+U = 1.0 / VOX          # une unité du monde, en voxels
 
-# Compétences : salle serveur, baies, tuyaux, grilles, vapeur
-for (x, yaw) in ((30.2, 90), (34.9, 270)):
-    for y in (45.4, 46.5, 47.6):
-        prop("mitaman/locker1", x, y, yaw, 0, 0)            # baies de serveurs
-prop("psionic/barrel2", 36.6, 42.6)
-prop("dcp/valve", 27.3, 48.2, 90, 30)
-prop("dcp/valve", 37.7, 44.7, 270, 30)
-prop("dcp/ventflap", 30.5, 49.7, 180, 70)
-prop("dcp/bulb", 30.2, 44.2, 0, 96)
-prop("dcp/bulb", 34.9, 48.8, 0, 96)
-prop("mitaman/floorgrate1", 32.5, 46.5)
-particles(33, 49.4, 66, 1, 0)                                 # vapeur de la ventilation
-prop("psionic/barrel2", 28.4, 42.5)
-prop("psionic/barrel2", 28.4, 49.5)
-prop("mitaman/locker3", 37.6, 43.5, 270, 0, 0)
-prop("xeno/box2", 37.5, 46.6, 10)
-light(32.5, 44, (90, 150, 255), 160, 70)
-light(32.5, 49, (60, 255, 160), 140, 70)
 
-# Certificats : salle des trophées, vitrines, torches, tapis rouge
-for (x, y) in ((15.5, 14.6), (15.5, 15.6), (22.5, 15.9)):
-    prop("dcp/waterbowl", x, y, 0, 0, 0)                     # coupes sur socle
-prop("dcp/chandelier", 19, 15.5, 0, 84)
-for (x, y, yaw) in ((15.2, 18.2, 90), (22.8, 13.8, 270)):
-    prop("objects/torch", x, y, yaw, 40)
-    particles(x + (0.15 if x < 19 else -0.15), y, 62, 0, 30, 40)    # flamme
-prop("xeno/box2", 21.4, 12.5, 30)
-prop("xeno/box1", 17.5, 12.4, 70)
-prop("dcp/smplant", 16.0, 19.5)
-prop("dcp/candle", 22.5, 17.0)
-light(19, 15.5, (255, 200, 90), 160, 80)
-light(15.4, 18.2, (255, 140, 60), 80, 60)
-light(22.6, 13.8, (255, 140, 60), 80, 60)
+def pendant(x, y, zbas, col, rayon=110):
+    """Suspension : tige depuis le plafond, abat-jour, lumière dessous."""
+    meuble(x - U, x + U, y - U, y + U, zbas + 3, H * VOX, "darkmetal")
+    meuble(x - 5 * U, x + 5 * U, y - 5 * U, y + 5 * U, zbas, zbas + 3, "darkmetal")
+    light(x, y, col, rayon, zbas - 6)
 
-# Contact : bureau de poste, casiers à lettres, colis, comptoir
-for x in (48.4, 49.5):
-    prop("mitaman/locker3", x, 35.6, 180, 0, 0)              # casiers à lettres
-prop("dcp/palette", 52.6, 34.0, 90)
-prop("xeno/box1", 52.6, 34.0, 15, 12)                        # colis sur la palette
-prop("dcp/sack", 50.8, 29.2)
-prop("dcp/sack", 49.9, 28.8)
-prop("dcp/hanginlamp", 50.5, 32, 0, 92)
-prop("objects/oillamp", 46.5, 30.0, 90)
-prop("objects/chair01", 51.0, 31.0, 270)
-prop("dcp/bin", 46.5, 35.4)
-prop("dcp/sack", 52.8, 35.2)
-light(50.5, 32, (255, 230, 170), 150, 80)
 
-# Galerie : bancs, plantes et lampes dans l'allée
+def ecran(x0, x1, y0, y1, z0, z1, face):
+    """Moniteur : coque sombre, dalle allumée sur la face `face`, pied jusqu'à z0 - 1.5."""
+    meuble(x0, x1, y0, y1, z0, z1, "darkmetal", **{face: "screen"})
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    meuble(cx - U, cx + U, cy - U, cy + U, z0 - 1.5, z0, "darkmetal")
+
+
+def braise(x, y, nom="dcp/firebowl"):
+    """Brasero posé au sol, flamme au sommet du modèle."""
+    prop(nom, x, y)
+    (lx, ly, lz), (hx, hy, hz) = model_bounds(nom)
+    particles(x + (lx + hx) / 2 * U, y + (ly + hy) / 2 * U, hz + 1, 0, 30, 40)
+
+
+# --- Profil (CV) : grand bureau face à l'entrée, bibliothèques, rayonnages ---------
+# Hauteurs un peu au-dessus du réel : l'architecture de la carte est à double échelle.
+meuble(17.4, 20.6, 47.0, 47.9, 11, 12, "beam")                                 # plateau
+meuble(17.45, 18.2, 47.05, 47.85, 0, 11, "lightwood")                           # caissons
+meuble(19.8, 20.55, 47.05, 47.85, 0, 11, "lightwood")
+meuble(18.2, 19.8, 47.75, 47.85, 3, 11, "lightwood")                            # voile de fond
+for x0 in (17.95, 18.65, 19.35):
+    ecran(x0, x0 + 0.65, 47.55, 47.65, 14, 22, "yn")                           # 3 écrans vers l'entrée
+meuble(18.6, 19.4, 47.1, 47.35, 12, 12.5, "darkmetal")                          # clavier
+prop("dcp/vase", 17.7, 47.3, 0, 12)
+prop("objects/chair01", 19, 46.5, 180)
+meuble(15.0, 15.9, 49.55, 50.0, 0, 56, "lightwood", yn="books")                # bibliothèque du fond
+meuble(15.9, 18.1, 49.55, 50.0, 0, 30, "lightwood", yn="books")                # (sous le panneau Profil)
+meuble(18.1, 20.6, 49.55, 50.0, 0, 56, "lightwood", yn="books")
+meuble(15.0, 15.45, 42.6, 49.55, 0, 30, "lightwood", xp="books")               # bibliothèque ouest
+meuble(16.4, 16.8, 43.2, 46.2, 0, 40, "lightwood", xn="books", xp="books")     # rayonnages au milieu
+meuble(21.3, 21.7, 43.0, 46.6, 0, 40, "lightwood", xn="books", xp="books")
+meuble(15.75, 16.65, 47.6, 48.5, 6, 7, "beam")                                  # table basse du coin lecture
+meuble(16.15, 16.25, 48.0, 48.1, 0, 6, "beam")
+prop("dcp/candle", 16.2, 48.25, 0, 7)
+prop("objects/chair01", 16.2, 47.2, 0)
+for y in (45.4, 46.5):
+    prop("mitaman/locker1", 22.75, y, 90)                                       # armoires d'archives
+prop("dcp/plant1", 22.4, 42.6)
+prop("dcp/bin", 20.9, 42.5)
+prop("dcp/smplant", 15.8, 42.85)
+pendant(19, 46.6, 36, (255, 190, 120), 150)
+pendant(16.2, 47.9, 34, (255, 200, 140), 80)
+light(19, 46.9, (90, 140, 255), 80, 18)                                         # lueur des écrans
+light(17.5, 48.8, (255, 170, 90), 110, 30)                                      # bibliothèque
+
+# --- Compétences : salle serveur dense, allée froide centrale, allées chaudes ------
+for (x0, y0, y1) in ((28.4, 44.2, 47.8), (30.0, 43.0, 49.0), (34.8, 43.0, 49.0), (36.6, 43.0, 47.5)):
+    meuble(x0, x0 + 0.8, y0, y1, 0, 36, "darkmetal", xn="rack", xp="rack")      # rangées de baies
+for y in (44.9, 47.1):
+    meuble(30.0, 35.6, y, y + 0.2, 36, 37, "metaltrim")                         # chemins de câbles
+meuble(28.4, 37.4, 46.0, 46.2, 36, 37, "metaltrim")
+prop("dcp/biotank", 28, 43)
+prop("dcp/biotank", 28, 49)
+prop("psionic/barrel2", 29.2, 42.6)
+prop("dcp/vent", 33, 49.6, 180)
+prop("dcp/console", 37.3, 48.6, 180)
+light(32.8, 44.5, (60, 140, 255), 120, 14)
+light(32.8, 47.5, (60, 255, 140), 120, 14)
+light(29.6, 46.0, (255, 90, 60), 80, 20)
+light(36.2, 45.0, (255, 90, 60), 80, 20)
+
+# --- Certificats : podium central, vitrines, braseros, kakémonos -------------------
+meuble(17.4, 18.5, 15.0, 16.2, 0, 8, "beam", haut="rug_red")                    # 2e marche
+meuble(18.5, 19.5, 15.0, 16.2, 0, 13, "beam", haut="rug_red")                   # 1re marche
+meuble(19.5, 20.6, 15.0, 16.2, 0, 5, "beam", haut="rug_red")                    # 3e marche
+prop("dcp/waterbowl", 19.0, 15.6, 0, 13)
+prop("dcp/vase", 17.95, 15.6, 0, 8)
+prop("dcp/vase", 20.05, 15.6, 0, 5)
+for (x0, y0, m) in ((15.4, 13.8, "dcp/waterbowl"), (15.4, 15.6, "dcp/chest"), (15.4, 17.4, "dcp/vase"),
+                    (22.0, 14.0, "dcp/vase"), (22.0, 15.8, "dcp/waterbowl")):
+    meuble(x0, x0 + 0.6, y0, y0 + 0.6, 0, 14, "beam", haut="rug_red")          # vitrines
+    prop(m, x0 + 0.3, y0 + 0.3, 90 if x0 < 19 else 270, 14)
+    light(x0 + 0.3, y0 + 0.3, (255, 220, 150), 60, 34)
+for x0 in (17.0, 20.85):
+    meuble(x0, x0 + 0.15, 15.2, 16.0, 0, 52, "darkmetal", yp="rug_red")         # kakémonos
+braise(17.6, 17.2)
+braise(20.4, 17.2)
+light(17.6, 17.2, (255, 130, 50), 90, 26)
+light(20.4, 17.2, (255, 130, 50), 90, 26)
+light(19, 15.6, (255, 225, 150), 120, 44)
+
+# --- Contact : guichet de poste, casiers de tri, rayonnage à colis -----------------
+meuble(50.3, 51.0, 29.0, 34.2, 0, 14, "lightwood", xn="trimwood")              # guichet
+meuble(50.2, 51.1, 29.0, 34.2, 14, 15, "beam")
+for y in (29.05, 31.55, 34.05):
+    meuble(50.6, 50.7, y, y + 0.1, 15, 38, "darkmetal")                         # montants de l'hygiaphone
+meuble(50.6, 50.7, 29.05, 34.15, 38, 40, "darkmetal")
+meuble(50.55, 50.75, 30.6, 32.4, 40, 46, "trimwood", xn="post_floor")           # enseigne du guichet
+ecran(50.45, 50.55, 29.9, 30.7, 17, 23, "xn")                                   # terminal du guichet
+prop("dcp/cbbox", 50.65, 33.4, 0, 15)
+prop("objects/chair01", 51.9, 31.5, 270)
+meuble(53.55, 54.0, 28.6, 33.5, 0, 30, "lightwood", xn="pigeonholes")          # casiers de tri
+for x0 in (52.2, 53.8):
+    meuble(x0, x0 + 0.1, 35.5, 36.0, 0, 36, "lightwood")                       # rayonnage à colis
+for z0 in (0, 13, 26, 35):
+    meuble(52.2, 53.9, 35.5, 36.0, z0, z0 + 1, "lightwood")
+prop("dcp/cbbox", 52.7, 35.75, 0, 1)
+prop("xeno/box1", 53.3, 35.75, 0, 1)
+prop("dcp/cbbox", 53.0, 35.75, 0, 14)
+prop("dcp/sack", 52.5, 29.2)
+prop("dcp/sack", 53.0, 29.7, 40)
+prop("objects/bench01", 47.6, 28.3, 0)
+pendant(50.2, 30.0, 46, (255, 220, 160), 120)
+pendant(50.2, 33.0, 46, (255, 220, 160), 120)
+light(53.0, 31.0, (255, 180, 100), 90, 22)
+
+# --- Galerie des projets : colonnes, bandeaux de stands, totem d'écrans ------------
+for y in (26.5, 32.5, 38.5, 44.5):
+    meuble(9.0, 9.3, y - 0.2, y + 0.2, 0, H * VOX, "beam")                    # colonnes entre les stands
+for (y0, y1) in ((20, 26), (27, 32), (33, 38), (39, 44), (45, 51)):
+    meuble(8.85, 9.0, y0, y1, 44, 52, "trimwood")                               # bandeau au-dessus de chaque stand
+meuble(10.6, 11.4, 34.6, 35.4, 0, 4, "beam")                                    # totem central
+meuble(10.85, 11.15, 34.85, 35.15, 4, 14, "darkmetal")
+meuble(10.7, 11.3, 34.7, 35.3, 14, 28, "darkmetal", xn="screen", xp="screen", yn="screen", yp="screen")
+for y in (26.0, 38.0, 44.0):
+    pendant(11, y, 60, (255, 240, 220), 140)
 for y in (24.5, 36.5, 47.5):
-    prop("objects/bench01", 12.55, y, 90, 0, 0)
+    prop("objects/bench01", 12.55, y, 90)
 for y in (21.0, 50.0):
     prop("dcp/smplant", 12.5, y)
-for y in (23, 29, 35, 41, 47):
-    prop("dcp/hanginlamp", 10.5, y, 0, 92)
-# Leboncoin (garage) : machine, fût, caisses, pneus de palette
-prop("aftas/machina/machina1", 4.2, 24.2, 90)
-prop("mapmodels/toca/radioactivedrum", 7.9, 21.0)
-prop("xeno/box1", 3.6, 23.2, 10)
-prop("xeno/box2", 3.7, 22.4, 40)
-light(5.5, 21.5, (255, 170, 90), 120, 70)
-# Magic Shape Generator : ampoules colorées, braseros
-for (x, y, col) in ((3.6, 27.6, (230, 80, 255)), (3.6, 31.4, (80, 220, 255))):
-    prop("dcp/bulb", x, y, 0, 90)
-    light(x + 0.6, y, col, 110, 85)
-for (x, y) in ((8.3, 27.6), (8.3, 31.4)):
-    particles(x, y, 30, 0, 35, 45)                           # feu des braseros
-# Mineport : rochers, arbuste, torches de mine
-prop("razgriz/rocks/set2/1", 7.9, 34.0, 30)
-prop("aftas/arvores/arp", 3.8, 37.5)
-prop("razgriz/objects/torch", 8.6, 36.8, 270, 36)
-particles(8.5, 36.8, 60, 0, 25, 35)
-# Cube 2 (arène) : caisses empilées, fût
-prop("xeno/box2", 3.6, 44.2, 20)
-prop("xeno/box1", 8.3, 39.6, 70)
-prop("mapmodels/toca/radioactivedrum", 3.7, 39.6)
-light(6, 43.2, (255, 80, 60), 100, 90)
-# Portfolio OS : postes, lampes, fauteuil
-prop("objects/lamp02", 8.4, 45.6)
-prop("objects/chair01", 5.0, 48.0, 90)
-prop("dcp/bulb", 6.0, 50.4, 0, 90)
-light(6, 49.5, (255, 140, 200), 100, 80)
+light(11, 35, (120, 170, 255), 80, 20)
+# Leboncoin (garage) : voiture rouge sur le pont, établi et panneau à outils, fûts
+meuble(4.9, 5.7, 21.9, 24.1, 3, 12, "rug_red")                                  # carrosserie
+meuble(4.95, 5.65, 21.9, 22.3, 12, 13, "rug_red")                               # capot
+meuble(5.0, 5.6, 22.5, 23.6, 12, 19, "darkmetal", xn="screen", xp="screen", yn="screen", yp="screen")  # habitacle vitré
+for wx in (4.8, 5.7):
+    for wy in (22.2, 23.5):
+        meuble(wx, wx + 0.1, wy, wy + 0.35, 0, 7, "darkmetal")                  # roues
+meuble(3.0, 3.7, 23.0, 25.0, 0, 13, "lightwood", haut="beam")                   # établi
+meuble(3.0, 3.1, 23.0, 25.0, 18, 40, "metaltrim")                               # panneau à outils
+prop("dcp/barrel", 3.6, 20.6)
+prop("dcp/cask", 8.3, 20.7)
+prop("psionic/barrel2", 4.3, 21.2)
+prop("dcp/palette", 7.6, 21.5)
+prop("xeno/box1", 3.35, 24.0, 0, 13)
+light(5.3, 23, (255, 170, 90), 120, 34)
+# Magic Shape Generator : borne interactive et sculpture de formes néon
+meuble(6.0, 6.8, 28.8, 30.2, 0, 14, "darkmetal")                                # borne
+ecran(6.1, 6.2, 29.0, 30.0, 16, 28, "xp")
+meuble(4.4, 5.2, 30.6, 31.4, 0, 20, "neon_wall")                                 # sculpture : formes empilées
+meuble(4.55, 5.05, 30.75, 31.25, 20, 36, "rug_red")
+meuble(4.65, 4.95, 30.85, 31.15, 36, 48, "screen")
+prop("dcp/groundlamp", 4, 28)
+light(6.6, 29.5, (230, 80, 255), 100, 26)
+light(4.8, 31.0, (80, 220, 255), 90, 40)
+# Mineport : arbre et établi façon voxels
+meuble(4.35, 4.65, 36.35, 36.65, 0, 36, "beam")                                 # tronc
+meuble(3.8, 5.2, 35.8, 37.2, 36, 60, "mine_floor")                              # feuillage
+meuble(5.5, 6.1, 33.1, 33.7, 0, 20, "lightwood", haut="mine_stone")             # établi façon voxels
+prop("dcp/mushroom", 7.5, 36.6)
+prop("dcp/grass", 6, 36)
+prop("dcp/grass", 5, 34)
+prop("dcp/reed", 7.4, 37.4)
+# Cube 2 : borne d'arcade, piliers, caisses
+meuble(3.05, 3.8, 41.1, 42.0, 0, 14, "darkmetal")                               # borne d'arcade
+meuble(3.05, 4.0, 41.1, 42.0, 14, 17, "darkmetal")
+meuble(3.05, 3.8, 41.1, 42.0, 17, 30, "darkmetal", xp="screen")
+meuble(3.05, 3.9, 41.1, 42.0, 30, 36, "neon_wall")
+prop("dcp/pillar", 4, 40)
+prop("dcp/pillar", 4, 43)
+prop("dcp/turret", 8.2, 41.5, 180)
+prop("aftas/caixa", 6.5, 39.8, 0, 10.4)
+prop("aftas/caixa", 6.5, 43.2, 0, 10.4)
+light(4.2, 41.55, (255, 80, 60), 90, 24)
+# Portfolio OS : bureau à trois écrans devant le fond d'écran Ubuntu
+meuble(5.3, 6.3, 46.9, 49.1, 11, 12, "lightwood")
+meuble(5.35, 6.25, 46.95, 47.2, 0, 11, "lightwood")
+meuble(5.35, 6.25, 48.8, 49.05, 0, 11, "lightwood")
+for y0 in (47.1, 47.75, 48.4):
+    ecran(5.7, 5.8, y0, y0 + 0.6, 14, 22, "xp")
+prop("objects/chair01", 4.9, 48.0, 270)
+prop("dcp/console", 3.6, 46.5, 0)
+prop("dcp/console", 3.6, 49.5, 0)
+prop("dcp/bin", 8.4, 49.5)
+light(6.5, 48, (255, 120, 200), 100, 20)
 
-# Extérieurs : rochers, bancs près de l'étang, lampadaires, arbres
+# --- Extérieurs : rochers, bancs près de l'étang, arbres ----------------------------
 for (x, y, m, yaw) in ((23.5, 53.0, "razgriz/rocks/set1/4", 0), (34.5, 61.0, "razgriz/rocks/set1/5", 40),
                        (2.8, 12.5, "razgriz/rocks/set1/6", 80), (60.5, 13.5, "razgriz/rocks/set1/7", 120),
                        (44.0, 61.0, "razgriz/rocks/set2/2", 10), (17.0, 61.0, "razgriz/rocks/set2/4", 200),
@@ -1031,12 +1270,7 @@ for (x, y, m, yaw) in ((23.5, 53.0, "razgriz/rocks/set1/4", 0), (34.5, 61.0, "ra
 for (x, y, yaw) in ((27.5, 60.6, 0), (30.5, 51.6, 180)):
     if outside_ok(x, y):
         prop("objects/bench01", x, y, yaw, 0, 0)
-for (x, y) in ((24.4, 39.4), (39.6, 39.4), (24.4, 22.6), (39.6, 22.6)):
-    if outside_ok(x, y):
-        prop("aftas/lampada", x, y, 0, 0, 0)
-        light(x, y, (255, 220, 160), 120, 70)
-for (x, y, m) in ((50.5, 58.5, "aftas/arvores/arg"), (8.5, 52.5, "aftas/arvores/arp"), (56.5, 41.5, "aftas/arvores/arg"),
-                  (19.5, 8.5, "aftas/arvores/arp")):
+for (x, y, m) in ((50.5, 58.5, "dcp/tree2"), (8.5, 52.5, "dcp/tree3"), (56.5, 41.5, "dcp/tree2"), (19.5, 8.5, "dcp/tree3")):
     if outside_ok(x, y):
         prop(m, x, y, 0, 0, 1)
 
@@ -1231,6 +1465,8 @@ def main():
     out = sys.argv[1] if len(sys.argv) > 1 else "build/gamedata"
     base = os.path.join(out, "packages", "base")
     os.makedirs(base, exist_ok=True)
+    nd = verifier_decors()
+    print("décors vérifiés : %d posés ou suspendus, %d boîtes de mobilier" % (nd, len(FURNBOXES)))
     n = write_ogz(os.path.join(base, "portfolio.ogz"))
     write_cfg(os.path.join(base, "portfolio.cfg"))
     nw = write_wpt(os.path.join(base, "portfolio.wpt"))

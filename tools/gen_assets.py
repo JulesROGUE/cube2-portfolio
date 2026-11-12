@@ -189,8 +189,91 @@ def panel_images():
         save(img, "packages/pf/%s.jpg" % name, quality=90)
 
 
+def books():
+    """Bibliothèque : étagères tous les 8 unités (64 px), dos de livres colorés."""
+    rr = random.Random(21)
+    img = noise_tex((70, 46, 28), 6, 256, 21)
+    d = ImageDraw.Draw(img)
+    pal = [(150, 40, 36), (40, 70, 130), (36, 110, 60), (170, 130, 50), (90, 50, 110), (190, 180, 160),
+           (120, 70, 40), (30, 30, 34), (60, 120, 130), (160, 80, 30)]
+    for row in range(4):
+        y0 = row * 64
+        d.rectangle([0, y0 + 56, 255, y0 + 63], fill=(96, 64, 38))          # planche
+        d.line([(0, y0 + 56), (255, y0 + 56)], fill=(130, 92, 58), width=2)
+        x = 2
+        while x < 250:
+            w = rr.randint(7, 15)
+            h = rr.randint(36, 52)
+            c = rr.choice(pal)
+            if rr.random() < 0.08:                                            # livre penché / vide
+                x += w
+                continue
+            d.rectangle([x, y0 + 56 - h, x + w - 2, y0 + 55], fill=c)
+            d.line([(x + 1, y0 + 60 - h), (x + w - 3, y0 + 60 - h)], fill=shade(c, 1.5), width=2)
+            d.line([(x + 1, y0 + 48), (x + w - 3, y0 + 48)], fill=shade(c, 1.5), width=2)
+            d.line([(x + w - 2, y0 + 56 - h), (x + w - 2, y0 + 55)], fill=shade(c, 0.5))
+            x += w
+    return img
+
+
+def rack():
+    """Baie de serveurs : unités 2U (32 px = 2 unités) avec voyants et grilles."""
+    rr = random.Random(7)
+    img = Image.new("RGB", (256, 256), (22, 24, 28))
+    d = ImageDraw.Draw(img)
+    for row in range(8):
+        y0 = row * 32
+        d.rectangle([6, y0 + 2, 249, y0 + 29], fill=(44, 47, 54), outline=(70, 74, 82))
+        for gx in range(40, 200, 6):                                            # grille d'aération
+            d.line([(gx, y0 + 8), (gx, y0 + 23)], fill=(28, 30, 34), width=2)
+        for k in range(rr.randint(2, 5)):
+            c = rr.choice([(60, 255, 120), (60, 255, 120), (80, 160, 255), (255, 180, 40)])
+            d.ellipse([212 + k * 8, y0 + 12, 217 + k * 8, y0 + 17], fill=c)
+        d.rectangle([12, y0 + 9, 30, y0 + 21], fill=(120, 124, 130))           # poignée
+    d.rectangle([0, 0, 5, 255], fill=(90, 94, 100))
+    d.rectangle([250, 0, 255, 255], fill=(90, 94, 100))
+    return img
+
+
+def screen():
+    """Écran allumé : code coloré sur fond sombre."""
+    rr = random.Random(3)
+    img = gradient(256, 256, (18, 30, 56), (10, 16, 32))
+    d = ImageDraw.Draw(img)
+    for i in range(16):
+        y = 10 + i * 15
+        x = 12 + rr.randint(0, 3) * 14
+        while x < 230 and rr.random() < 0.85:
+            w = rr.randint(14, 54)
+            d.rectangle([x, y, min(244, x + w), y + 6],
+                        fill=rr.choice([(120, 200, 255), (250, 200, 90), (130, 230, 140), (230, 120, 200), (200, 210, 225)]))
+            x += w + 8
+    return img
+
+
+def pigeonholes():
+    """Casiers de tri postal : grille 4 x 4 en bois avec lettres."""
+    rr = random.Random(11)
+    img = Image.new("RGB", (256, 256), (110, 76, 44))
+    d = ImageDraw.Draw(img)
+    for j in range(4):
+        for i in range(4):
+            x0, y0 = i * 64 + 6, j * 64 + 6
+            d.rectangle([x0, y0, x0 + 51, y0 + 51], fill=(40, 28, 18))
+            for k in range(rr.randint(0, 3)):
+                c = rr.choice([(235, 230, 215), (220, 200, 160), (250, 250, 245), (200, 220, 240)])
+                yy = y0 + 51 - 8 - k * 9
+                d.rectangle([x0 + 4 + k * 2, yy, x0 + 47, yy + 7], fill=c)
+    return img
+
+
 def map_textures():
     T = {
+        # Mobilier en géométrie (aucune texture équivalente dans le jeu de base)
+        "books": books(),
+        "rack": rack(),
+        "screen": screen(),
+        "pigeonholes": pigeonholes(),
         # Mineport : blocs façon voxels (aucun équivalent dans le jeu de base)
         "floor_grass": pixel_tex("grass", 30),
         "wall_dirt": grass_side(),

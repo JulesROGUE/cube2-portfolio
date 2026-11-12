@@ -268,14 +268,14 @@
     if (!ready) return;
     musicIndex = (musicIndex + 1) % MUSIC.length;
     var name = MUSIC[musicIndex];
-    var target = '/packages/music/' + name;
+    var target = '/media/music/' + name;   // moteur Tesseract : media/
     var play = function () { exec('music "music/' + name + '" [js nextmusic]'); };
     try { if (Module.FS.analyzePath(target).exists) return play(); } catch (e) {}
     fetch(basePath + 'music/' + name).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.arrayBuffer();
     }).then(function (buf) {
-      Module.FS.mkdirTree('/packages/music');
+      Module.FS.mkdirTree('/media/music');
       Module.FS.writeFile(target, new Uint8Array(buf));
       console.log('musique chargée : ' + name + ' (' + buf.byteLength + ' octets)');
       play();

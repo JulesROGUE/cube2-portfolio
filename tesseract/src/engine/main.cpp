@@ -499,7 +499,7 @@ void setfullscreen(bool enable)
 #ifdef _DEBUG
 VARF(fullscreen, 0, 0, 1, setfullscreen(fullscreen!=0));
 #else
-VARF(fullscreen, 0, 1, 1, setfullscreen(fullscreen!=0));
+VARF(fullscreen, 0, WEBDEF(1, 0), 1, setfullscreen(fullscreen!=0));   // PORTFOLIO : plein écran via la coquille web (touche F)
 #endif
 
 void screenres(int w, int h)

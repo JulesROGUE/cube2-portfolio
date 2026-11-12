@@ -484,6 +484,7 @@ namespace UI
 
         static const char *typestr() { return "#Object"; }
         virtual const char *gettype() const { return typestr(); }
+        virtual const char *getstr() const { return ""; }   // PORTFOLIO : texte (Text et dérivés)
         virtual const char *getname() const { return gettype(); }
         virtual const char *gettypename() const { return gettype(); }
 
@@ -3492,6 +3493,42 @@ namespace UI
         cursorx = cursory = 0.5f;
     }
 
+    // PORTFOLIO (tests) : texte du bouton survolé par le curseur (« » si aucun)
+    static void collecttext(Object *o, vector<char> &buf)
+    {
+        if(o->getstr()[0]) { if(buf.length()) buf.add(' '); buf.put(o->getstr(), strlen(o->getstr())); }
+        loopv(o->children) collecttext(o->children[i], buf);
+    }
+    // bouton (cible) sous le point (cx, cy), coordonnées du monde de l'interface
+    static Object *findhovertarget(Object *o, float ox, float oy, float cx, float cy)
+    {
+        loopvrev(o->children)
+        {
+            Object *c = o->children[i];
+            float x = ox + c->x, y = oy + c->y;
+            if(cx < x || cx >= x + c->w || cy < y || cy >= y + c->h) continue;
+            Object *r = findhovertarget(c, x, y, cx, cy);
+            if(r) return r;
+            if(c->istype<Target>()) return c;
+        }
+        return NULL;
+    }
+    static string pfhovertext = "";
+    static void pfupdatehover()
+    {
+        Object *t = hascursor() ? findhovertarget(world, 0, 0, cursorx*float(hudw)/hudh, cursory) : NULL;
+        vector<char> buf;
+        if(t) collecttext(t, buf);
+        buf.add('\0');
+        copystring(pfhovertext, buf.getbuf());
+    }
+    ICOMMAND(pfuihovertext, "", (), result(pfhovertext));
+    ICOMMAND(pfuidebug, "", (),
+    {
+        conoutf("ui cursor %.3f %.3f world %.3f %.3f %.3f %.3f", cursorx, cursory, world->x, world->y, world->w, world->h);
+        loopv(world->children) { Object *w = world->children[i]; conoutf("ui fenetre %d : %.3f %.3f %.3f %.3f enfants %d", i, w->x, w->y, w->w, w->h, w->children.length()); }
+    });
+
     // PORTFOLIO : curseur natif du navigateur (position absolue, fractions du canvas)
     void setcursorpos(float x, float y)
     {
@@ -3502,7 +3539,7 @@ namespace UI
     bool cursorinwindow()
     {
         if(!hascursor()) return false;
-        return world->windowat(cursorx*world->w, cursory*world->h);
+        return world->windowat(cursorx*float(hudw)/hudh, cursory);
     }
 
     bool movecursor(int dx, int dy)
@@ -3582,6 +3619,7 @@ namespace UI
         if(world->childstate&STATE_HOLD) world->setstate(STATE_HOLD, cursorx, cursory, STATE_HOLD, false);
         if(world->childstate&STATE_ALT_HOLD) world->setstate(STATE_ALT_HOLD, cursorx, cursory, STATE_ALT_HOLD, false);
         if(world->childstate&STATE_ESC_HOLD) world->setstate(STATE_ESC_HOLD, cursorx, cursory, STATE_ESC_HOLD, false);
+        pfupdatehover();
 
         calctextscale();
 
